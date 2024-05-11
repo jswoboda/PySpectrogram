@@ -60,8 +60,8 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import AudioProcessor as AP
 
-
-
+from pathlib import Path
+import digital_rf as drf
 
 
 #   DEFINE CLASS FOR PROGRAM (TO BE CALLED IN MAIN)
@@ -91,7 +91,7 @@ class RunProgram(QMainWindow):
         self.resize(cursize.width(), cursize.height()-titleBarHeight)
 
         # setting title/icon, background color
-        self.setWindowTitle('PyRealtimeSpectrogram')
+        self.setWindowTitle('DRFRealtimeSpectrogram')
         #self.setWindowIcon(QIcon('pathway_to_icon_here.png')) #TODO: Create/include icon
         p = self.palette()
         p.setColor(self.backgroundRole(), QColor(255,255,255)) #white background
@@ -579,7 +579,7 @@ class RunProgram(QMainWindow):
         fscale = int(np.ceil(len(freqs)/self.maxNfreqs))
         self.alltabdata[curtabnum]["stats"]["fscale"]  = fscale
         relplotindices = range(int(np.floor(fscale/2)),len(freqs),fscale)
-        self.alltabdata[curtabnum]["stats"]["plotindices"] = [inds[i] for i in relplotindices]
+        self.alltabdata[curtabnum]["stats"]["plotindices"] = [inds[i][0] for i in relplotindices]
         self.alltabdata[curtabnum]["data"]["plotfreqs"] = [freqs[i] for i in relplotindices]
         
         self.pullsettings(curtabnum, False) #dont update processor to prevent recursion
@@ -740,6 +740,11 @@ class RunProgram(QMainWindow):
             newspectra_cut = np.array([])
             for i in inds:
                 sind = int(np.max([0, i-fsc]))
+                # try:
+                #     sind = int(np.max([0, i-fsc]))
+                # except:
+                #     import ipdb
+                #     ipdb.set_trace()
                 eind = int(np.min([lenspec, i+fsc]))
                 newspectra_cut = np.append(newspectra_cut, np.max(newspectra[sind:eind]))
         else:
@@ -1160,7 +1165,7 @@ class RunProgram(QMainWindow):
             
             
             
-    
+
 
 # =============================================================================
 #        POPUP WINDOW FOR AUDIO CHANNEL SELECTION

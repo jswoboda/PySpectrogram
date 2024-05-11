@@ -32,7 +32,7 @@
 
 import numpy as np
 from scipy.io import wavfile as sciwavfile #for wav file reading
-from scipy.signal import tukey #taper generation
+from scipy.signal.windows import tukey #taper generation
 
 import wave #WAV file writing
 
@@ -49,6 +49,8 @@ from os.path import exists
 from sys import platform
 
 import pyaudio
+import digital_rf as drf
+from pathlib import Path
 
 
 def listaudiodevices():
@@ -72,7 +74,32 @@ def listaudiodevices():
 
     
     
-    
+class DrfInput():
+
+    def __init__(self,drfdir):
+        drf_path = Path(drfdir).expanduser()
+        self.drf_Obj = drf.DigitalRFReader(str(drf_path))
+        chans = self.drf_Obj.get_channels()
+        raw_chan_list = []
+        self.chan_dict = {}
+        for ichan in chans:
+            props = self.drf_Obj.get_properties(ichan)
+            num_sub = props['num_subchannls']
+            for isub in range(num_sub):
+                self.chan_dict[ichan+":"+str(isub)] = (ichan,isub)
+
+
+
+    def read(self,chan_entry,st_sample,n_sample,adj_bnds = False):
+        ichan,isub = self.chan_dict[chan_entry]
+
+        bnds = self.drf_Obj.get_bounds(ichan)
+        if adj_bnds:
+            st_sample = max(st_sample,bnds[0])
+            n_sample = min(bnds[1],n_sample+st_sample)-st_sample
+        x = self.drf_Obj.read_vector_raw(st_sample,n_sample,ichan,isub)
+        return x
+
 
 # =============================================================================
 #  READ SIGNAL FROM WINRADIO, OUTPUT TO PLOT, TABLE, AND DATA
@@ -244,6 +271,7 @@ class AudioProcessor(QRunnable):
                     pcmdata = np.array(self.audiostream[-self.N:])
                 
                 if pcmdata is not None:
+  
                     spectra = self.dofft(pcmdata)
                     self.signals.iterated.emit(i,self.maxnum,self.tabID,ctime,spectra) #sends current PSD/frequency, along with progress, back to event loop
                         
@@ -279,6 +307,7 @@ class AudioProcessor(QRunnable):
         spectra[np.isinf(spectra)] = 1.0E-8 #replacing negative inf values (spectra power=0) with -1
     
         #limiting data to positive/real frequencies only (and convert to dB)
+
         spectra = np.log10(spectra[self.keepind])
         
         return spectra
