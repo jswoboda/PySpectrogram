@@ -69,7 +69,7 @@ from PyQt5.QtWidgets import (
     QStyleOptionTitleBar,
     QSlider,
 )
-from PyQt5.QtCore import QObjectCleanupHandler, Qt, pyqtSlot, pyqtSignal, QObject
+from PyQt5.QtCore import QObjectCleanupHandler, Qt, pyqtSlot, pyqtSignal, QObject,Orientation
 from PyQt5.QtGui import QIcon, QColor, QPalette, QBrush, QLinearGradient, QFont
 from PyQt5.Qt import QThreadPool
 
@@ -225,6 +225,8 @@ class RunProgram(QMainWindow):
                 "N": None,
                 "df": None,
                 "timerange": 20,
+                "timerangemin" : 0,
+                "timerangemax" : 1000,
                 "fftlen": 1024,
                 "crange": [-70, -40],
                 "reprate": 0.1,
@@ -346,7 +348,7 @@ class RunProgram(QMainWindow):
                     c, s
                 )  # stretching out row with plot axes
 
-            # making widgets for settings tab
+            # making widgets for settings tab start and stop
             self.alltabdata[curtabnum]["tabwidgets"]["start"] = QPushButton("Start")
             self.alltabdata[curtabnum]["tabwidgets"]["start"].clicked.connect(
                 self.startprocessor
@@ -355,6 +357,7 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["stop"].clicked.connect(
                 self.stopprocessor
             )
+            # data source
             self.alltabdata[curtabnum]["tabwidgets"]["sourcetitle"] = QLabel(
                 "Data Source: "
             )
@@ -362,6 +365,44 @@ class RunProgram(QMainWindow):
             for source in self.usetype:
                 self.alltabdata[curtabnum]["tabwidgets"]["datasource"].addItem(source)
 
+            
+                        # time range
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemintitle"] = QLabel(
+                "Time Range Min: "
+            )
+           
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"] = QSlider(Orientation.Horizontal)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setRange(0, 1000)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setValue(
+                initstats["timerangemin"]
+            )
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setSingleStep(1)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setPageStep(10)
+
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtitle"] = QLabel(
+                "Time Range Max: "
+            )
+           
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"] = QSlider(Orientation.Horizontal)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setRange(0, 1000)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setValue(
+                initstats["timerangemax"]
+            )
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setSingleStep(1)
+
+            st_str, et_str = self.gettimes()
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemintext"] = QLabel(st_str)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemintext"].setAlignment(
+                Qt.AlignRight | Qt.AlignVCenter
+            )
+            
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"] = QLabel(st_str)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"].setAlignment(
+                Qt.AlignRight | Qt.AlignVCenter
+            )
+            
+
+            #spectrogram time
             self.alltabdata[curtabnum]["tabwidgets"]["ctimetitle"] = QLabel(
                 "Spectrogram Time: "
             )
@@ -374,12 +415,13 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setDecimals(2)
             self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setValue(0)
 
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangetitle"] = QLabel(
-                "Time Range: "
-            )
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangetitle"].setAlignment(
-                Qt.AlignRight | Qt.AlignVCenter
-            )
+
+
+            # other widgets
+
+
+
+
             self.alltabdata[curtabnum]["tabwidgets"]["timerange"] = QDoubleSpinBox()
             self.alltabdata[curtabnum]["tabwidgets"]["timerange"].setRange(0.25, 30)
             self.alltabdata[curtabnum]["tabwidgets"]["timerange"].setSingleStep(0.25)
@@ -388,6 +430,7 @@ class RunProgram(QMainWindow):
                 initstats["timerange"]
             )
 
+            # Color bar settings
             self.alltabdata[curtabnum]["tabwidgets"]["cmintitle"] = QLabel(
                 "Color Minimum: "
             )
@@ -415,6 +458,7 @@ class RunProgram(QMainWindow):
                 initstats["crange"][1]
             )
 
+            # FFT length fftwindow
             self.alltabdata[curtabnum]["tabwidgets"]["fftlentitle"] = QLabel(
                 "FFT Window Length samples: "
             )
@@ -427,6 +471,7 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setDecimals(1)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setValue(1024)
 
+            # Repetition rate  dt
             self.alltabdata[curtabnum]["tabwidgets"]["repratetitle"] = QLabel(
                 "Repitition Rate (s): "
             )
@@ -440,6 +485,7 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["reprate"].setValue(0.1)
 
   
+            # Min max frequencies
             self.alltabdata[curtabnum]["tabwidgets"]["fmintitle"] = QLabel(
                 "Frequency Min (kHz): "
             )
@@ -482,8 +528,17 @@ class RunProgram(QMainWindow):
                 "stop": {"wrows": 1, "wcols": 2, "wrext": 1, "wcolext": 1},
                 "sourcetitle": {"wrows": 2, "wcols": 1, "wrext": 1, "wcolext": 2},
                 "datasource": {"wrows": 3, "wcols": 1, "wrext": 1, "wcolext": 2},
+
+                "timerangemintitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
+                "timerangemintext": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
+                "timerangemin": {"wrows": 6, "wcols": 1, "wrext": 1, "wcolext": 2},
+                "timerangemaxtitle": {"wrows": 7, "wcols": 1, "wrext": 1, "wcolext": 1},
+                "timerangemaxtext": {"wrows": 7, "wcols": 2, "wrext": 1, "wcolext": 1},
+                "timerangemax": {"wrows": 8, "wcols": 1, "wrext": 1, "wcolext": 2},
+                
                 "ctimetitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
                 "ctime": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
+
                 "timerangetitle": {"wrows": 1, "wcols": 3, "wrext": 1, "wcolext": 1},
                 "timerange": {"wrows": 1, "wcols": 4, "wrext": 1, "wcolext": 1},
                 "cmintitle": {"wrows": 2, "wcols": 3, "wrext": 1, "wcolext": 1},
@@ -706,6 +761,24 @@ class RunProgram(QMainWindow):
         text = f"Specifications: \nSampling Frequency {fs} {fsnunits}\nNyquist Frequency {fn} {fsnunits}\nNFFT: {nfft}\nFrequency Resolution: {df} Hz"
         return text
 
+    def gettimes(self):
+        curtabnum, _ = self.whatTab()
+        bnds = self.alltabdata[curtabnum]["Processor"].drfIn.bnds
+        sr = self.alltabdata[curtabnum]["Processor"].drfIn.bnds
+        ichan = self.alltabdata[curtabnum]['curchan']
+        cur_bnds = bnds[ichan]
+        s_int = self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].value()
+        s_end = self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].value()
+        cur_bin_ex = cur_bnds[1]-cur_bnds[0]
+        des_st = (s_int*cur_bin_ex)/1000 +cur_bnds[0]
+        des_end = (s_end*cur_bin_ex)/1000 +cur_bnds[0]
+        st_dt = drf.util.sample_to_datetime(int(des_st),sr)
+        et_dt = drf.util.sample_to_datetime(int(des_end),sr)
+        
+        return st_dt.isoformat(),et_dt.isoformat()
+    def getendtime(self):
+        curtabnum, _ = self.whatTab()
+        
     def updatecurtabsettings(self):
         curtabnum, _ = self.whatTab()
         self.pullsettings(curtabnum, True)

@@ -173,6 +173,9 @@ class DrfProcessor(QRunnable):
     def __init__(
         self, datasource, drfdir, tabID, fftbins, n_int, lensig, dt, *args, **kwargs
     ):
+        #fftwindow is number of seconds for fft.
+        # in the original software dt was the sample time, fs was the sampling frequency. 
+        # dt is time between ffts in the original code. basically controls the overlap.
 
         super(DrfProcessor, self).__init__()
 
@@ -186,6 +189,7 @@ class DrfProcessor(QRunnable):
         self.n_int = n_int
         self.lensig = lensig
         self.dt = dt
+        # number of samples read in 
         self.samp_read = np.arange(int(lensig / dt)) * int(sr)
 
         # initializing inner workings
@@ -306,6 +310,7 @@ class DrfProcessor(QRunnable):
 
             while self.isrunning:
                 i += 1
+                # read for streaming data
                 if self.streaming:
                     self.drfIn.bnds_update()
                     next_read = {}
@@ -316,6 +321,7 @@ class DrfProcessor(QRunnable):
                         new_st = min(old_max, cur_bnds[-1] - nread)
                         new_inum = min(cur_bnds[-1] - new_st, nread)
                         next_read[ient] = (new_st, new_inum)
+                # Read if choosing new dataset
                 else:
                     next_read = {}
                     t_st, nread = get_next_read()
@@ -336,13 +342,16 @@ class DrfProcessor(QRunnable):
                     d1 = self.drfIn.read(new_st, newnread, ichan)
                     sr = self.drfIn.sr_dict[ichan]
                     for isub in isubs:
-                        t_out, f, sxx_int, sxx_med = proc_data(
-                            d1[..., isub], self.sr, self.nfft, dt
+                        t_out, self.freqs_all, sxx_int, sxx_med = proc_data(
+                            d1[..., isub], sr, self.nfft, self.dt
                         )
 
                         self.signals.iterated(
-                            i, self.maxnum, self.tabID, t_out, f, sxx_int, sxx_med
+                            i, self.maxnum, self.tabID, t_out, self.freqs_all, sxx_int, sxx_med
                         )
+              
+              
+              
                 # finds time from processor start in seconds
                 curtime = dt.datetime.utcnow()  # current time
                 deltat = curtime - self.starttime
@@ -414,7 +423,8 @@ class DrfProcessor(QRunnable):
             self.fftbins += 1
 
         self.df = self.fs / self.fftbins
-        self.freqs_all = np.array(
+        self.freqs_all = np.fft.fftfreq()
+        np.array(
             [
                 self.df * n if n < self.fftbins / 2 else self.df * (n - self.fftbins)
                 for n in range(self.fftbins)
@@ -431,12 +441,12 @@ class DrfProcessor(QRunnable):
     def changethresholds_slot(self, fftwindow):  # update data thresholds for FFT
         self.changethresholds(fftwindow)
 
-    def changethresholds(self, fftwindow):  # update data thresholds for FFT
+    def changethresholds(self, fftwindow, dt):  # update data thresholds for FFT
         if fftwindow <= 1:
             self.fftwindow = fftwindow
         else:
             self.fftwindow = 1
-
+        self.dt = dt
         self.calc_settings()
 
     @pyqtSlot()
