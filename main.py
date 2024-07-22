@@ -69,7 +69,7 @@ from PyQt5.QtWidgets import (
     QStyleOptionTitleBar,
     QSlider,
 )
-from PyQt5.QtCore import QObjectCleanupHandler, Qt, pyqtSlot, pyqtSignal, QObject,Orientation
+from PyQt5.QtCore import QObjectCleanupHandler, Qt, pyqtSlot, pyqtSignal, QObject
 from PyQt5.QtGui import QIcon, QColor, QPalette, QBrush, QLinearGradient, QFont
 from PyQt5.Qt import QThreadPool
 
@@ -371,7 +371,7 @@ class RunProgram(QMainWindow):
                 "Time Range Min: "
             )
            
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"] = QSlider(Orientation.Horizontal)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"] = QSlider(Qt.Orientation.Horizontal)
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setRange(0, 1000)
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setValue(
                 initstats["timerangemin"]
@@ -383,7 +383,7 @@ class RunProgram(QMainWindow):
                 "Time Range Max: "
             )
            
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"] = QSlider(Orientation.Horizontal)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"] = QSlider(Qt.Orientation.Horizontal)
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setRange(0, 1000)
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setValue(
                 initstats["timerangemax"]
@@ -396,7 +396,7 @@ class RunProgram(QMainWindow):
                 Qt.AlignRight | Qt.AlignVCenter
             )
             
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"] = QLabel(st_str)
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"] = QLabel(et_str)
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"].setAlignment(
                 Qt.AlignRight | Qt.AlignVCenter
             )
@@ -421,14 +421,6 @@ class RunProgram(QMainWindow):
 
 
 
-
-            self.alltabdata[curtabnum]["tabwidgets"]["timerange"] = QDoubleSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["timerange"].setRange(0.25, 30)
-            self.alltabdata[curtabnum]["tabwidgets"]["timerange"].setSingleStep(0.25)
-            self.alltabdata[curtabnum]["tabwidgets"]["timerange"].setDecimals(2)
-            self.alltabdata[curtabnum]["tabwidgets"]["timerange"].setValue(
-                initstats["timerange"]
-            )
 
             # Color bar settings
             self.alltabdata[curtabnum]["tabwidgets"]["cmintitle"] = QLabel(
@@ -466,7 +458,7 @@ class RunProgram(QMainWindow):
                 Qt.AlignRight | Qt.AlignVCenter
             )
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"] = QDoubleSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setRange(32, )
+            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setRange(32,1048576)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setDecimals(1)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setValue(1024)
@@ -539,8 +531,6 @@ class RunProgram(QMainWindow):
                 "ctimetitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
                 "ctime": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
 
-                "timerangetitle": {"wrows": 1, "wcols": 3, "wrext": 1, "wcolext": 1},
-                "timerange": {"wrows": 1, "wcols": 4, "wrext": 1, "wcolext": 1},
                 "cmintitle": {"wrows": 2, "wcols": 3, "wrext": 1, "wcolext": 1},
                 "cmin": {"wrows": 2, "wcols": 4, "wrext": 1, "wcolext": 1},
                 "cmaxtitle": {"wrows": 3, "wcols": 3, "wrext": 1, "wcolext": 1},
@@ -763,6 +753,8 @@ class RunProgram(QMainWindow):
 
     def gettimes(self):
         curtabnum, _ = self.whatTab()
+        if self.alltabdata[curtabnum]["Processor"] is None:
+            return "xxxx-xx-xxTXX:XX:XXZ", "yyyy-mm-ddTHH:MM:SSZ"
         bnds = self.alltabdata[curtabnum]["Processor"].drfIn.bnds
         sr = self.alltabdata[curtabnum]["Processor"].drfIn.bnds
         ichan = self.alltabdata[curtabnum]['curchan']
