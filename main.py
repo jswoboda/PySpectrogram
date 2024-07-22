@@ -224,7 +224,6 @@ class RunProgram(QMainWindow):
                 "freqs": [],
                 "N": None,
                 "df": None,
-                "timerange": 20,
                 "timerangemin" : 0,
                 "timerangemax" : 1000,
                 "fftlen": 1024,
@@ -776,10 +775,15 @@ class RunProgram(QMainWindow):
         self.pullsettings(curtabnum, True)
 
     def pullsettings(self, curtabnum, updateProcessor):
-        oldrange = self.alltabdata[curtabnum]["stats"]["timerange"]
-        self.alltabdata[curtabnum]["stats"]["timerange"] = self.alltabdata[curtabnum][
+   
+
+        self.alltabdata[curtabnum]["stats"]["timerangemin"] = self.alltabdata[curtabnum][
             "tabwidgets"
-        ]["timerange"].value()
+        ]["timerangemin"].value()
+
+        self.alltabdata[curtabnum]["stats"]["timerangemax"] = self.alltabdata[curtabnum][
+            "tabwidgets"
+        ]["timerangemin"].value()
 
         oldcrange = self.alltabdata[curtabnum]["stats"]["crange"]
         self.alltabdata[curtabnum]["stats"]["crange"] = [
@@ -915,11 +919,12 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
 
     def updateAxesLimits(self, curtabnum):
-        timerange = self.alltabdata[curtabnum]["stats"]["timerange"]
-        curlimit = self.alltabdata[curtabnum]["tabwidgets"]["ctime"].value()
+        time_min =  self.alltabdata[curtabnum]["stats"]["timerangemin"]
+        time_max =  self.alltabdata[curtabnum]["stats"]["timerangemax"]
+
         frange = self.alltabdata[curtabnum]["stats"]["frange"]
         self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(
-            curlimit - timerange, curlimit
+            time_min,  time_max
         )
         self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(frange[0], frange[1])
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
@@ -941,6 +946,8 @@ class RunProgram(QMainWindow):
                 "datasource"
             ].currentText()
 
+
+            drfdir = QFileDialog.getExistingDirectory(self, "Select a Digital RF Data Set")
             if datasource.lower() == "wav file":  # AUDIO FILE
                 # getting filename
                 fname, ok = QFileDialog.getOpenFileName(
