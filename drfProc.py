@@ -126,7 +126,43 @@ class DrfInput:
         self.last_read[ichan] = (st_sample, n_sample)
         x = x / ref
         return x
+    def read_sti(self,st_sample, chan_entry, en_sample,nfft,nint,ntime):
+        """Get the needed arrays for an STI from digital rf. The ending array will be an array of size (nfftxnint,ntime,nsub) where nfft is the number of nfft points, nint is the number of integrated ffts, ntime is the number of time elements and the nsub is the number of sub channels. This allows for the first axes to represent fft, integrate and then time.
 
+        Parameters
+        ----------
+        st_sample : int
+            Start sample of the read in the number of samples since the ephoc.
+        chan_entry : str
+            Can either be the channel name or the channel name and subchannel number seperated with a `:`. If just the channel name then the output will be a ntimexnsub array, if it has the sub channel then there will be
+        en_sample : int
+            End sample of the STI in the number of samples since the ephoc.
+        nfft : int
+            Number of points in the FFT.
+        nint : int
+            Number of integrations of the fft.
+        ntime : int
+            Number of time points of the fft
+        
+        Returns
+        -------
+        n_st : ndarray
+            Array that holds first sample read for each time period
+        dout : ndarray
+            Array of samples read out is of shape of (nfftxnint,ntime,nsub).
+        """
+        n_st = np.linspace(st_sample,en_sample,ntime,dtype=int)
+        n_sample = nint*nfft
+        dlist = []
+        for ist in n_st: 
+            d1 = self.read(ist,n_sample,chan_entry)
+  
+            d2 = d1[:,np.newaxis]
+            dlist.append(d2)
+
+        dout = np.concatenate(dlist,axis=1)
+        return n_st, dout
+    
     def bnds_update(self):
         """Update the internal bounds in the class."""
         chans = list(self.chan2_sub.keys())
@@ -171,7 +207,7 @@ class DrfProcessor(QRunnable):
 
     # initializing current thread (saving variables, reading audio data or contacting/configuring receiver)
     def __init__(
-        self, datasource, drfdir, tabID, fftbins, n_int, lensig, dt, *args, **kwargs
+        self, datasource, drfdir, tabID, fftbins, n_int, ntime, *args, **kwargs
     ):
         #fftwindow is number of seconds for fft.
         # in the original software dt was the sample time, fs was the sampling frequency. 
@@ -187,11 +223,9 @@ class DrfProcessor(QRunnable):
         self.tabID = tabID
         self.fftbins = fftbins
         self.n_int = n_int
-        self.lensig = lensig
-        self.dt = dt
-        # number of samples read in 
-        self.samp_read = np.arange(int(lensig / dt)) * int(sr)
-
+        self.ntime = ntime
+        self.bnds = self.drfIn.time_bnds
+        
         # initializing inner workings
         self.isrunning = False  # set to true while running
         self.signals = ThreadProcessorSignals()  # signal connections
@@ -201,13 +235,15 @@ class DrfProcessor(QRunnable):
         # output audio (WAV) file name- saving in temporary folder passed from event loop
         if datasource[:3] == "streaming":
             self.streaming = True
+            self.streamtime = 30
         else:
             self.streaming = False
+            self.streamtime = None
         if not self.drf_path.exists():
             self.terminate(1)
 
         self.isrunning = True
-
+    
     @pyqtSlot()
     def run(self):
 
@@ -223,97 +259,42 @@ class DrfProcessor(QRunnable):
 
             timemodule.sleep(0.1)
 
-        if (
-            self.reason
-        ):  # just in case timing issues allow the while loop to terminate and then the reason is changed
+        if (self.reason):  
+            # just in case timing issues allow the while loop to terminate and then the reason is changed
             return
         # if the Run() method gets this far, __init__ has completed successfully (and set self.startthread = 100)
-
-        # storing FFT settings (this can't happen in __init__ because it might emit updated settings before the slot is connected)
-        self.changethresholds(self.fftwindow, self.dt)
-
-        if self.fromAudio:  # if source is an audio file
-            self.sampletimes = np.arange(
-                0, self.lensignal / self.fs, self.dt
-            )  # sets times to sample from file
-            self.maxnum = len(self.sampletimes)
-
-        else:  # using live mic for data source
-            self.maxnum = 0  # TODO: ADD INITIALIZATION STUFF HERE
-            try:
-
-                def updatedrfbuffer(bufferdata):
-                    try:
-                        if self.isrunning:
-                            pass
-                    except Exception:
-                        trace_error()
-                        self.terminate(5)
-                        returntype = None
-                    finally:
-                        return (None, returntype)
-
-                # CALLBACK FUNCTION HERE
-                def updateaudiobuffer(bufferdata, nframes, time_info, status):
-                    try:
-                        if self.isrunning:
-                            self.audiostream.extend(bufferdata[:])  # append data to end
-                            del self.audiostream[:nframes]  # remove data from start
-                            wave.Wave_write.writeframes(
-                                self.wavfile, bytearray(bufferdata)
-                            )
-                            returntype = pyaudio.paContinue
-                        else:
-                            returntype = pyaudio.paAbort
-                    except Exception:
-                        trace_error()
-                        self.terminate(5)
-                        returntype = pyaudio.paAbort
-                    finally:
-                        return (None, returntype)
-                    # end of callback function
-
-                # initializing and starting (start=True) pyaudio device input stream to callback function
-                if platform.lower() == "darwin":  # MacOS specific stream info input
-                    self.stream = pyaudio.Stream(
-                        self.p,
-                        self.fs,
-                        1,
-                        self.frametype,
-                        input=True,
-                        output=False,
-                        input_device_index=self.audiosourceindex,
-                        start=True,
-                        stream_callback=updateaudiobuffer,
-                        input_host_api_specific_stream_info=pyaudio.PaMacCoreStreamInfo(),
-                    )
-                else:  # windows or linux
-                    self.stream = pyaudio.Stream(
-                        self.p,
-                        self.fs,
-                        1,
-                        self.frametype,
-                        input=True,
-                        output=False,
-                        input_device_index=self.audiosourceindex,
-                        start=True,
-                        stream_callback=updateaudiobuffer,
-                    )
-
-            except Exception:
-                trace_error()
-                self.terminate(2)
-
+   
         try:
             # setting up thread while loop- terminates when user clicks "STOP" or audio file finishes processing
             i = -1
 
             while self.isrunning:
                 i += 1
+                # storing FFT settings (this can't happen in __init__ because it might emit updated settings before the slot is connected)
+                self.updatesettings(self.fftbins, self.nint,self.ntime)
+                # update teh bounds
+                self.drfIn.bnds_update()
+
+                if self.streaming:
+                    end_time = self.drfIn.time_bnds[-1]
+                    st_time = end_time-self.streamtime
+
+                else:
+                    st_time, end_time = self.bnds
+
+                for ichan in self.drfIn.chan_2sub.keys():
+                    sr = self.drfIn.sr_dict[ichan]
+                    s_samp = drf.util.time_to_sample(st_time,sr)
+                    e_samp = drf.util.time_to_sample(end_time,sr)
+                    n_st, d1 = self.drfIn.read_sti(s_samp,ichan,e_samp,self.fftbins,self.n_int,self.ntime)
+
+                    f, sxx, sxx_med = sti_proc_data(d1,sr,self.fftbins)
+                    
                 # read for streaming data
                 if self.streaming:
                     self.drfIn.bnds_update()
-                    next_read = {}
+                    end_time = self.drfIn.time_bnds[-1]
+
                     for ient, (ist, inum) in self.drfIn.last_read.items():
                         ichan in self.drfIn.chan_entries[ient][0]
                         cur_bnds = self.drfIn.bnds[ichan]
@@ -397,57 +378,18 @@ class DrfProcessor(QRunnable):
 
             trace_error()  # if there is an error, terminates processing
 
-    # #function to run fft here
-    # def dofft(self, pcmdata):
 
-    #     if self.alpha > 0: #applying Tukey taper if necessary
-    #         if pcmdata.shape[0] == self.taperlen:
-    #             ctaper = self.taper
-    #         else:
-    #             self.taper = tukey(pcmdata.shape[0], alpha=self.alpha)
-    #         pcmdata = pcmdata*self.taper
 
-    #     # conducting fft, calculating PSD
-    #     spectra = np.abs(np.fft.fft(pcmdata)**2)/self.df #PSD = |X(f)^2| / df
-    #     spectra[np.isinf(spectra)] = 1.0E-8 #replacing negative inf values (spectra power=0) with -1
+    @pyqtSlot(float, float, float,float,float)
+    def updatesettings_slot(self, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
+        self.updatesettings( fftbins,nint,ntime,bnd_beg,bnd_end)
 
-    #     #limiting data to positive/real frequencies only (and convert to dB)
-
-    #     spectra = np.log10(spectra[self.keepind])
-
-    #     return spectra
-
-    def calc_settings(self):
-
-        if self.fftbins % 2:  # N must be even
-            self.fftbins += 1
-
-        self.df = self.fs / self.fftbins
-        self.freqs_all = np.fft.fftfreq()
-        np.array(
-            [
-                self.df * n if n < self.fftbins / 2 else self.df * (n - self.fftbins)
-                for n in range(self.fftbins)
-            ]
-        )
-        self.keepind = np.greater_equal(self.freqs_all, 0)
-        self.freqs = self.freqs_all[self.keepind]
-
-        self.signals.statsupdated.emit(
-            self.tabID, self.fs, self.df, self.fftbins, self.freqs
-        )
-
-    @pyqtSlot(float, float, float)
-    def changethresholds_slot(self, fftwindow):  # update data thresholds for FFT
-        self.changethresholds(fftwindow)
-
-    def changethresholds(self, fftwindow, dt):  # update data thresholds for FFT
-        if fftwindow <= 1:
-            self.fftwindow = fftwindow
-        else:
-            self.fftwindow = 1
-        self.dt = dt
-        self.calc_settings()
+    def updatesettings(self, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
+        self.fftbins = int(fftbins)
+        self.n_int = int(nint)
+        self.ntime = int(ntime)
+        self.bnds = (bnd_beg,bnd_end)
+        self.signals.statsupdated.emit(self.tabID,self.fftbins,self.n_int,self.ntime,self.bnds)
 
     @pyqtSlot()
     def abort(self):  # executed when user selects "Stop" button
@@ -460,17 +402,46 @@ class DrfProcessor(QRunnable):
         self.reason = reason
         self.isrunning = False  # guarantees that event loop ends
 
-        # close audio file, terminate mic buffer
-        if not self.fromAudio:
-            wave.Wave_write.close(self.wavfile)
-            self.stream.stop_stream()
-            self.stream.close()
 
         # signal that tab indicated by curtabnum was closed due to reason indicated by variable 'reason'
         self.signals.terminated.emit(
             self.tabID, reason
         )  # notify event loop that processor has stopped
 
+
+def sti_proc_data(d1, sr, nfft):
+    """Creates an STI, assumes that the data dimentions are the following (nfft*nint,ntime,nsub). The output array of sxx will be (nfft,ntime,nsub).
+
+    Parameters
+    ----------
+    d1 : array_like
+        Input data in shape of (nfft*nint,ntime,nsub).
+    sr : float
+        Sampling rate in Hz
+    nfft : int
+        Number of FFT bins in spectra.
+
+
+    Returns
+    -------
+    f : array_like
+        Frequency array of spectrum in Hz.
+    sxx : array_like
+        STI data in (nfft,ntime,nsub) array.
+    sxx_med : array_like
+        Median across time of the STI
+    """
+    win = sig.get_window(("kaiser", 1.7), nfft)
+    f, pxx = sig.periodogram(
+        d1, sr, window=win, nfft=nfft,detrend=False, return_onesided=False, scaling="spectrum", axis=0)
+  
+
+    f = np.fft.fftshift(f)
+    sxx = np.fft.fftshift(pxx, axes=0)
+
+    sxx_med = np.median(sxx,axis=1)
+
+    return f, sxx, sxx_med
 
 def proc_data(d1, sr, nfft, dt):
     """Creates a STI, min median and max spectra.
