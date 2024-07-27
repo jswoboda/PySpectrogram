@@ -67,6 +67,7 @@ from PyQt5.QtWidgets import (
     QStyle,
     QStyleOptionTitleBar,
     QSlider,
+    QRadioButton,
 )
 from PyQt5.QtCore import QObjectCleanupHandler, Qt, pyqtSlot, pyqtSignal, QObject
 from PyQt5.QtGui import QIcon, QColor, QPalette, QBrush, QLinearGradient, QFont
@@ -165,8 +166,9 @@ class RunProgram(QMainWindow):
         self.fileoptions = QFileDialog.Options()
         self.fileoptions |= QFileDialog.DontUseNativeDialog
 
-        # identifying connected devices
-        self.usetype = ["streaming", "written"]
+        # HACK set to written for now
+        # identifying use method["streaming", "written"]
+        self.usetype = 'written'
 
         self.audioWindowOpened = False
 
@@ -241,7 +243,7 @@ class RunProgram(QMainWindow):
                     "stats": initstats,
                     "isprocessing": False,
                     "Processor": None,
-                    "datasource": None,
+                    "chanselect": None,
                     "data": {
                         "ctime": 0,
                         "maxtime": 0,
@@ -351,16 +353,17 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["stop"].clicked.connect(
                 self.stopprocessor
             )
+
+
             # data source
-            self.alltabdata[curtabnum]["tabwidgets"]["sourcetitle"] = QLabel(
-                "Data Source: "
+            self.alltabdata[curtabnum]["tabwidgets"]["chanseltitle"] = QLabel(
+                "Channel select: "
             )
-            self.alltabdata[curtabnum]["tabwidgets"]["datasource"] = QComboBox()
-            for source in self.usetype:
-                self.alltabdata[curtabnum]["tabwidgets"]["datasource"].addItem(source)
+            self.alltabdata[curtabnum]["tabwidgets"]["chanselect"] = QComboBox()
+            self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].addItem("No Channels")             
 
             
-                        # time range
+                    # time range
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemintitle"] = QLabel(
                 "Time Range Min: "
             )
@@ -524,8 +527,8 @@ class RunProgram(QMainWindow):
             widget_layout = {
                 "start": {"wrows": 1, "wcols": 1, "wrext": 1, "wcolext": 1},
                 "stop": {"wrows": 1, "wcols": 2, "wrext": 1, "wcolext": 1},
-                "sourcetitle": {"wrows": 2, "wcols": 1, "wrext": 1, "wcolext": 2},
-                "datasource": {"wrows": 3, "wcols": 1, "wrext": 1, "wcolext": 2},
+                "chanseltitle": {"wrows": 2, "wcols": 1, "wrext": 1, "wcolext": 2},
+                "chanselect": {"wrows": 3, "wcols": 1, "wrext": 1, "wcolext": 2},
 
                 "timerangemintitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
                 "timerangemintext": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
@@ -957,8 +960,8 @@ class RunProgram(QMainWindow):
                 curtabnum, False
             )  # don't need to update processor because it hasn't been initialized yet
 
-            datasource = self.alltabdata[curtabnum]["tabwidgets"][
-                "datasource"
+            curchan = self.alltabdata[curtabnum]["tabwidgets"][
+                "chanselect"
             ].currentText()
 
 
@@ -1022,7 +1025,7 @@ class RunProgram(QMainWindow):
             # else:  # SPEAKER STREAM
             #     dataindex = self.audiosourceIDs[
             #         self.alltabdata[curtabnum]["tabwidgets"][
-            #             "datasource"
+            #             "chanselect"
             #         ].currentIndex()
             #     ]
             #     datasource = f"MMM-{dataindex}"
@@ -1035,12 +1038,12 @@ class RunProgram(QMainWindow):
             self.audioWindowOpened = False
             self.initiate_processor(tabID, datasource)
 
-    def initiate_processor(self, tabID, datasource):
+    def initiate_processor(self, tabID, drf_directory):
 
         curtabnum = self.tabnumbers.index(tabID)
 
         # making datasource QComboBox un-selectable so source can't be changed after processing initiated
-        self.alltabdata[curtabnum]["tabwidgets"]["datasource"].setEnabled(False)
+        self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].setEnabled(False)
         self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setEnabled(False)
         self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setEnabled(False)
         self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setEnabled(False)
@@ -1056,30 +1059,33 @@ class RunProgram(QMainWindow):
         )  # updates visual once every second for live audio
 
         # saving datasource
-        self.alltabdata[curtabnum]["datasource"] = datasource
+        self.alltabdata[curtabnum]["datasource"] = drf_directory
 
         # setting up progress bar for audio
-        if datasource[:3].lower() == "aaa":
-            self.alltabdata[curtabnum]["tabwidgets"][
-                "audioprogressbar"
-            ] = QProgressBar()
-            self.alltabdata[curtabnum]["mainLayout"].addWidget(
-                self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"], 0, 1, 1, 1
-            )
-            self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"].setValue(0)
-            QApplication.processEvents()
+        # if datasource[:3].lower() == "aaa":
+        #     self.alltabdata[curtabnum]["tabwidgets"][
+        #         "audioprogressbar"
+        #     ] = QProgressBar()
+        #     self.alltabdata[curtabnum]["mainLayout"].addWidget(
+        #         self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"], 0, 1, 1, 1
+        #     )
+        #     self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"].setValue(0)
+        #     QApplication.processEvents()
 
         # initializing and starting thread
         self.alltabdata[curtabnum]["Processor"] = dp.DrfProcessor(
             self.usetype,
-            datasource,
+            drf_directory,
             tabID,
             fftlen,
             nint,
             ntime
         )
+        chan_list = self.alltabdata[curtabnum]["Processor"].chan_listing
         self.threadpool.start(self.alltabdata[curtabnum]["Processor"])
-
+        self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].clear()
+        for ichan in chan_list:
+            self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].addItem(ichan)
         # connecting slots
         self.alltabdata[curtabnum]["Processor"].signals.iterated.connect(
             self.updateUIinfo
@@ -1132,10 +1138,7 @@ class RunProgram(QMainWindow):
         self, i, maxnum, tabID, ctime, spectra
     ):  # TODO: configure PyQtSlot to receive data from processor thread and update spectrogram
         curtabnum = self.tabnumbers.index(tabID)
-        if self.alltabdata[curtabnum]["fromAudio"]:  # from audio file
-            self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"].setValue(
-                int(np.round(100 * i / maxnum))
-            )
+
 
         # saving data
         self.alltabdata[curtabnum]["data"]["maxtime"] = ctime

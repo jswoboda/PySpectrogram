@@ -216,8 +216,7 @@ class DrfProcessor(QRunnable):
         super(DrfProcessor, self).__init__()
 
         self.drfIn = DrfInput(drfdir)
-        chan = [self.drfIn.sr_dict.keys()][0]
-        sr = self.drfIn.sr_dict[chan]
+
         self.drf_path = Path(drfdir).expanduser()
         # UI inputs
         self.tabID = tabID
@@ -225,7 +224,7 @@ class DrfProcessor(QRunnable):
         self.n_int = n_int
         self.ntime = ntime
         self.bnds = self.drfIn.time_bnds
-        
+        self.chan_listing = list(self.drfIn.chan_entries.keys())
         # initializing inner workings
         self.isrunning = False  # set to true while running
         self.signals = ThreadProcessorSignals()  # signal connections
@@ -233,7 +232,7 @@ class DrfProcessor(QRunnable):
         self.reason = 0
 
         # output audio (WAV) file name- saving in temporary folder passed from event loop
-        if datasource[:3] == "streaming":
+        if datasource.lower() == "streaming":
             self.streaming = True
             self.streamtime = 30
         else:
@@ -271,7 +270,7 @@ class DrfProcessor(QRunnable):
             while self.isrunning:
                 i += 1
                 # storing FFT settings (this can't happen in __init__ because it might emit updated settings before the slot is connected)
-                self.updatesettings(self.fftbins, self.nint,self.ntime)
+                self.updatesettings(self.fftbins, self.n_int,self.ntime)
                 # update teh bounds
                 self.drfIn.bnds_update()
 
