@@ -29,7 +29,7 @@
 from sys import argv, exit
 from platform import system as cursys
 from struct import calcsize
-from os import remove, path, listdir
+from pathlib import Path
 import shutil
 from traceback import print_exc as trace_error
 from datetime import datetime
@@ -85,10 +85,9 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 
 import drfProc as dp
 
-from pathlib import Path
 import digital_rf as drf
 
-
+import ipdb
 #   DEFINE CLASS FOR PROGRAM (TO BE CALLED IN MAIN)
 class RunProgram(QMainWindow):
 
@@ -360,8 +359,12 @@ class RunProgram(QMainWindow):
                 "Channel select: "
             )
             self.alltabdata[curtabnum]["tabwidgets"]["chanselect"] = QComboBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].addItem("No Channels")             
-
+            self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].addItem("No Channels") 
+            self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].currentTextChanged.connect(self.chan_text_changed)            
+            
+            self.alltabdata[curtabnum]["tabwidgets"]["subchansel"] = QComboBox()
+            self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].addItem("No Sub Channels") 
+            self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].currentIndexChanged.connect(self.sub_ind_changed)
             
                     # time range
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemintitle"] = QLabel(
@@ -529,6 +532,7 @@ class RunProgram(QMainWindow):
                 "stop": {"wrows": 1, "wcols": 2, "wrext": 1, "wcolext": 1},
                 "chanseltitle": {"wrows": 2, "wcols": 1, "wrext": 1, "wcolext": 2},
                 "chanselect": {"wrows": 3, "wcols": 1, "wrext": 1, "wcolext": 2},
+                "subchansel": {"wrows": 4, "wcols": 1, "wrext": 1, "wcolext": 2},
 
                 "timerangemintitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
                 "timerangemintext": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
@@ -739,6 +743,33 @@ class RunProgram(QMainWindow):
     #       Plot update and control, signal processor interactions
     # =============================================================================
 
+    def chan_text_changed(self, s):
+        """Control function for channel combo box to change channel and record it.
+        
+        Parameters
+        ----------
+        s : str
+            String for the channel name.
+        """
+        curtabnum, _ = self.whatTab()
+
+        self.alltabdata[curtabnum]['stats']['chanselect'] = s
+        sub_chanlist = self.alltabdata[curtabnum]['stats']['chandict'][s]
+        self.alltabdata[curtabnum]['subchansel'].clear()
+        self.alltabdata[curtabnum]['stats']['subchansel'] = sub_chanlist[0]
+        for isub in sub_chanlist:
+            self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].addItem(str(isub))
+    def sub_ind_changed(self, index):
+        """Control function for subchannel combox box to change sub channel and record it.
+        
+        Parameters
+        ----------
+        index : int
+            integer for the sub channel.
+        """
+        curtabnum, _ = self.whatTab()
+        self.alltabdata[curtabnum]['stats']['subchansel'] = index
+        
     def getspecs(self):
         curtabnum, _ = self.whatTab()
         stats = self.alltabdata[curtabnum]["stats"]
@@ -824,7 +855,9 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["fmin"].setValue(oldfrange[0])
             self.alltabdata[curtabnum]["tabwidgets"]["fmax"].setValue(oldfrange[1])
             self.postwarning("Maximum frequency range must exceed minimum value!")
-
+        # channel    
+        self.alltabdata[curtabnum]["stats"]["chanselect"] = self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].currentText()
+        # Info for spectrogram
         self.alltabdata[curtabnum]["stats"]["nint"] = self.alltabdata[curtabnum][
             "tabwidgets"
         ]["nint"].value()
@@ -960,76 +993,46 @@ class RunProgram(QMainWindow):
                 curtabnum, False
             )  # don't need to update processor because it hasn't been initialized yet
 
-            curchan = self.alltabdata[curtabnum]["tabwidgets"][
-                "chanselect"
-            ].currentText()
+            # curchan = self.alltabdata[curtabnum]["tabwidgets"][
+            #     "chanselect"
+            # ].currentText()
 
 
-            drfdir = QFileDialog.getExistingDirectory(self, "Select a Digital RF Data Set")
+        
+            fpath = Path(__file__)
+            curpath = fpath.parent
+            saved_path = curpath.joinpath("old_dir.txt")
+            if saved_path.exists():
 
+                with open(saved_path) as f:
+                    lines = f.readlines()
+                st_dir = lines[0]
+
+            else:
+                st_dir = str(Path("~").expanduser())
+
+            drf_sel = True
+
+            while drf_sel:
+
+                drfdir = QFileDialog.getExistingDirectory(self, "Select a Digital RF Data Set",st_dir)
+                if not Path(drfdir).exists():
+                    print("Directory does not exist, select again.")
+                else:
+                    try:
+                        _ = drf.DigitalRFReader(drfdir)
+                        drf_sel = False
+                    except ValueError:
+                        print("Please select a valid digital RF dataset.")
+
+                
             try:
                 self.initiate_processor(tabID, drfdir)
             except Exception as e: 
                 print("Failed to open drf directory")
                 print(e)
                 traceback.print_exc()
-            # if datasource.lower() == "wav file":  # AUDIO FILE
-            #     # getting filename
-            #     fname, ok = QFileDialog.getOpenFileName(
-            #         self,
-            #         "Open file",
-            #         self.defaultfiledir,
-            #         "Source Data Files (*.WAV *.Wav *.wav *PCM *Pcm *pcm)",
-            #         "",
-            #         self.fileoptions,
-            #     )
-            #     if not ok or fname == "":
-            #         self.alltabdata[curtabnum]["isprocessing"] = False
-            #         return
-            #     else:
-            #         splitpath = path.split(fname)
-            #         self.defaultfiledir = splitpath[0]
 
-            #     self.alltabdata[curtabnum]["fromAudio"] = True
-
-            #     # determining which channel to use
-            #     # selec-2=no box opened, -1 = box opened, 0 = box closed w/t selection, > 0 = selected channel
-            #     try:
-            #         file_info = wave.open(fname)
-            #     except:
-            #         self.postwarning("Unable to read audio file")
-            #         return
-
-            #     nchannels = file_info.getnchannels()
-            #     if nchannels == 1:
-            #         datasource = f"AAA-00000-{fname}"
-            #         self.initiate_processor(tabID, datasource)
-            #     else:
-            #         if self.audioWindowOpened:  # active tab already opened
-            #             self.postwarning(
-            #                 "An audio channel selector dialog box has already been opened in another tab. Please close that box before processing an audio file with multiple channels in this tab."
-            #             )
-
-            #         else:
-            #             self.audioWindowOpened = True
-            #             self.audioChannelSelector = AudioWindow(
-            #                 nchannels, tabID, fname
-            #             )  # creating and connecting window
-            #             self.audioChannelSelector.signals.closed.connect(
-            #                 self.audioWindowClosed
-            #             )
-            #             self.audioChannelSelector.show()  # bring window to front
-            #             self.audioChannelSelector.raise_()
-            #             self.audioChannelSelector.activateWindow()
-
-            # else:  # SPEAKER STREAM
-            #     dataindex = self.audiosourceIDs[
-            #         self.alltabdata[curtabnum]["tabwidgets"][
-            #             "chanselect"
-            #         ].currentIndex()
-            #     ]
-            #     datasource = f"MMM-{dataindex}"
-            #     self.alltabdata[curtabnum]["fromAudio"] = False
                 
     # slot in main program to close window (only one channel selector window can be open at a time)
     @pyqtSlot(int, int, str)
@@ -1061,17 +1064,6 @@ class RunProgram(QMainWindow):
         # saving datasource
         self.alltabdata[curtabnum]["datasource"] = drf_directory
 
-        # setting up progress bar for audio
-        # if datasource[:3].lower() == "aaa":
-        #     self.alltabdata[curtabnum]["tabwidgets"][
-        #         "audioprogressbar"
-        #     ] = QProgressBar()
-        #     self.alltabdata[curtabnum]["mainLayout"].addWidget(
-        #         self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"], 0, 1, 1, 1
-        #     )
-        #     self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"].setValue(0)
-        #     QApplication.processEvents()
-
         # initializing and starting thread
         self.alltabdata[curtabnum]["Processor"] = dp.DrfProcessor(
             self.usetype,
@@ -1081,6 +1073,7 @@ class RunProgram(QMainWindow):
             nint,
             ntime
         )
+
         chan_list = self.alltabdata[curtabnum]["Processor"].chan_listing
         self.threadpool.start(self.alltabdata[curtabnum]["Processor"])
         self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].clear()
@@ -1098,6 +1091,7 @@ class RunProgram(QMainWindow):
         )
         self.alltabdata[curtabnum]["isprocessing"] = True
         self.alltabdata[curtabnum]["tabwidgets"]["start"].setEnabled(False)
+        self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].setEnabled(True)
 
     def stopprocessor(self):
         curtabnum, _ = self.whatTab()
@@ -1133,29 +1127,52 @@ class RunProgram(QMainWindow):
             )
         return output
 
-    @pyqtSlot(int, int, int, float, np.ndarray)
+    @pyqtSlot(int, int, int, np.ndarray, np.ndarray,np.ndarray)
     def updateUIinfo(
-        self, i, maxnum, tabID, ctime, spectra
+        self, i, tabID, n_st,freqs_all,sxx,sxx_med
     ):  # TODO: configure PyQtSlot to receive data from processor thread and update spectrogram
         curtabnum = self.tabnumbers.index(tabID)
 
 
         # saving data
-        self.alltabdata[curtabnum]["data"]["maxtime"] = ctime
-        self.alltabdata[curtabnum]["data"]["ctime"] = ctime
-        self.alltabdata[curtabnum]["data"]["spectra"] = self.append_spectral_data(
-            self.alltabdata[curtabnum]["data"]["spectra"], spectra, False, None, None
-        )
-        self.alltabdata[curtabnum]["data"]["times"] = np.append(
-            self.alltabdata[curtabnum]["data"]["times"], ctime
-        )
+        self.alltabdata[curtabnum]["data"]["ctime"] = n_st
+        self.alltabdata[curtabnum]["data"]["spectra"] = sxx
+        self.alltabdata[curtabnum]["data"]["spectamed"] = sxx_med
+        
+        self.alltabdata[curtabnum]["data"]["times"] = n_st
         self.alltabdata[curtabnum]["data"]["isplotted"].append(False)
 
         # update spectrogram every 5 points for realtime or 50 points for audio (should be every 1 sec for a 10Hz reprate)
-        if (
-            maxnum == 0 and i % self.alltabdata[curtabnum]["stats"]["updateint"] == 0
-        ) or (maxnum > 0 and i % 10 == 0):
-            self.updateplot(curtabnum)
+        self.updateplot_1(curtabnum)
+
+    def updateplot_1(self,curtabnum):
+        
+        plotspectra= self.alltabdata[curtabnum]["data"]["spectra"]
+        crange = self.alltabdata[curtabnum]["stats"]["crange"]
+        freqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]
+        fsc = int(np.ceil(self.alltabdata[curtabnum]["stats"]["fscale"] / 2))
+        inds = self.alltabdata[curtabnum]["stats"]["plotindices"]
+        times =     self.alltabdata[curtabnum]["data"]["times"]
+        time_min =  times.min()
+        time_max =  times.max()
+       
+
+        tdiff = time_max - time_min
+        dx = self.alltabdata[curtabnum]["stats"]["df"] / 2
+        dy = tdiff / self.alltabdata[curtabnum]["stats"]["ntime"]
+        extent = [ freqs[0] - dx, freqs[-1] + dx,times[0] - dy, times[-1] + dy]
+        self.alltabdata[curtabnum]["SpectroAxes"].imshow(
+            plotspectra.T,
+            aspect="auto",
+            cmap=self.spectralmap,
+            vmin=crange[0],
+            vmax=crange[1],
+            extent=extent,
+        )
+        self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(freqs[0], freqs[-1])
+
+        self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(time_min, time_max)
+        self.alltabdata[curtabnum]["SpectroCanvas"].draw()
 
     def updateplot(self, curtabnum):
         if self.alltabdata[curtabnum]["data"]["isplotted"].count(False) >= 3:
@@ -1237,8 +1254,6 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["tabwidgets"]["endtime"].setRange(0, maxval)
         self.alltabdata[curtabnum]["tabwidgets"]["endtime"].setValue(maxval)
 
-        if self.alltabdata[curtabnum]["fromAudio"]:
-            self.alltabdata[curtabnum]["tabwidgets"]["audioprogressbar"].deleteLater()
 
         if reason:
             if reason == 1:

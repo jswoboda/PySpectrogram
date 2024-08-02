@@ -126,6 +126,7 @@ class DrfInput:
         self.last_read[ichan] = (st_sample, n_sample)
         x = x / ref
         return x
+    
     def read_sti(self,st_sample, chan_entry, en_sample,nfft,nint,ntime):
         """Get the needed arrays for an STI from digital rf. The ending array will be an array of size (nfftxnint,ntime,nsub) where nfft is the number of nfft points, nint is the number of integrated ffts, ntime is the number of time elements and the nsub is the number of sub channels. This allows for the first axes to represent fft, integrate and then time.
 
@@ -151,12 +152,12 @@ class DrfInput:
         dout : ndarray
             Array of samples read out is of shape of (nfftxnint,ntime,nsub).
         """
-        n_st = np.linspace(st_sample,en_sample,ntime,dtype=int)
+       
         n_sample = nint*nfft
+        n_st = np.linspace(st_sample,en_sample-n_sample,ntime,dtype=int)
         dlist = []
         for ist in n_st: 
             d1 = self.read(ist,n_sample,chan_entry)
-  
             d2 = d1[:,np.newaxis]
             dlist.append(d2)
 
@@ -165,7 +166,7 @@ class DrfInput:
     
     def bnds_update(self):
         """Update the internal bounds in the class."""
-        chans = list(self.chan2_sub.keys())
+        chans = list(self.chan_2sub.keys())
         for ichan in chans:
             bnds = self.drf_Obj.get_bounds(ichan)
             sr_f = self.sr_dict[ichan]
@@ -270,10 +271,10 @@ class DrfProcessor(QRunnable):
             while self.isrunning:
                 i += 1
                 # storing FFT settings (this can't happen in __init__ because it might emit updated settings before the slot is connected)
-                self.updatesettings(self.fftbins, self.n_int,self.ntime)
+                
                 # update teh bounds
                 self.drfIn.bnds_update()
-
+                self.updatesettings(self.fftbins, self.n_int,self.ntime, self.drfIn.time_bnds[0], self.drfIn.time_bnds[1])
                 if self.streaming:
                     end_time = self.drfIn.time_bnds[-1]
                     st_time = end_time-self.streamtime
@@ -286,85 +287,15 @@ class DrfProcessor(QRunnable):
                     s_samp = drf.util.time_to_sample(st_time,sr)
                     e_samp = drf.util.time_to_sample(end_time,sr)
                     n_st, d1 = self.drfIn.read_sti(s_samp,ichan,e_samp,self.fftbins,self.n_int,self.ntime)
-
+                    time_list = [drf.util.sample_to_datetime(istime, int(sr)) for istime in n_st]
+                    time_ar = np.concatinate(time_list)
                     f, sxx, sxx_med = sti_proc_data(d1,sr,self.fftbins)
-                    
-                # read for streaming data
-                if self.streaming:
-                    self.drfIn.bnds_update()
-                    end_time = self.drfIn.time_bnds[-1]
-
-                    for ient, (ist, inum) in self.drfIn.last_read.items():
-                        ichan in self.drfIn.chan_entries[ient][0]
-                        cur_bnds = self.drfIn.bnds[ichan]
-                        old_max = inum + ist
-                        new_st = min(old_max, cur_bnds[-1] - nread)
-                        new_inum = min(cur_bnds[-1] - new_st, nread)
-                        next_read[ient] = (new_st, new_inum)
-                # Read if choosing new dataset
-                else:
-                    next_read = {}
-                    t_st, nread = get_next_read()
-                    for ient, (ist, inum) in self.drfIn.last_read.items():
-                        ichan in self.drfIn.chan_entries[ient][0]
-                        sr_f = self.drfIn.sr_dict[ichan]
-                        cur_bnds = self.drfIn.bnds[ichan]
-                        old_max = inum + ist
-                        new_st = max(cur_bnds[0], int(sr_f * t_st))
-                        new_inum = min(cur_bnds[-1] - new_st, nread)
-                        next_read[ient] = (new_st, new_inum)
-
-                for ichan, isubs in self.drfIn.chan_2sub.items():
-
-                    ient = ichan + ":" + str(isub)
-                    ref = self.ref_dict(ichan)
-                    new_st, newnread = next_read[ient]
-                    d1 = self.drfIn.read(new_st, newnread, ichan)
-                    sr = self.drfIn.sr_dict[ichan]
-                    for isub in isubs:
-                        t_out, self.freqs_all, sxx_int, sxx_med = proc_data(
-                            d1[..., isub], sr, self.nfft, self.dt
-                        )
-
-                        self.signals.iterated(
-                            i, self.maxnum, self.tabID, t_out, self.freqs_all, sxx_int, sxx_med
-                        )
-              
-              
-              
-                # finds time from processor start in seconds
-                curtime = dt.datetime.utcnow()  # current time
-                deltat = curtime - self.starttime
-
-                # pulling PCM data segment
-                if self.fromAudio:
-
-                    if i < self.maxnum:
-                        ctime = self.sampletimes[i]  # center time for current sample
-                    else:
-                        self.terminate(0)
-                        return
-
-                    ctrind = int(np.round(ctime * self.fs))
-                    pmind = int(self.fftbins / 2)
-
-                    if ctrind - pmind >= 0 and ctrind + pmind < self.lensignal:
-                        pcmdata = self.audiostream[ctrind - pmind : ctrind + pmind]
-                    else:
-                        pcmdata = None
-
-                else:
-                    ctime = deltat.total_seconds()
-                    pcmdata = np.array(self.audiostream[-self.fftbins :])
-
-                if pcmdata is not None:
-
-                    spectra = self.dofft(pcmdata)
+                    self.freqs_all = f
                     self.signals.iterated.emit(
-                        i, self.maxnum, self.tabID, ctime, spectra
-                    )  # sends current PSD/frequency, along with progress, back to event loop
-
-                if self.fromAudio:
+                            i,self.tabID, time_ar, self.freqs_all, sxx, sxx_med
+                        )
+ 
+                if self.streaming:
                     timemodule.sleep(0.08)  # tiny pause to free resources
 
                 else:  # wait for time threshold before getting next point
@@ -496,9 +427,9 @@ def proc_data(d1, sr, nfft, dt):
 # initializing signals for data to be passed back to main loop
 class ThreadProcessorSignals(QObject):
     iterated = pyqtSignal(
-        int, int, int, float, np.ndarray
+        int, int, int, np.ndarray, np.ndarray,np.ndarray
     )  # signal to add another entry to raw data arrays
-    statsupdated = pyqtSignal(int, int, float, int, np.ndarray)
+    statsupdated = pyqtSignal(int, int, float, int, tuple)
     terminated = pyqtSignal(
         int, int
     )  # signal that the loop has been terminated (by user input or program error)
