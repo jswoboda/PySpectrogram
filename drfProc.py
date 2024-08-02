@@ -53,7 +53,7 @@ import digital_rf as drf
 from fractions import Fraction
 from pathlib import Path
 
-
+import ipdb
 class DrfInput:
 
     def __init__(self, drfdir):
@@ -77,7 +77,7 @@ class DrfInput:
             )
             bnds = self.drf_Obj.get_bounds(ichan)
             num_sub = props["num_subchannels"]
-            self.chan_2sub[ichan] = {ichan: np.arange(num_sub)}
+            self.chan_2sub[ichan] = np.arange(num_sub)
             self.bnds[ichan] = bnds
             self.time_bnds = (
                 min(self.time_bnds[0], float(bnds[0] / sr_f)),
@@ -225,7 +225,8 @@ class DrfProcessor(QRunnable):
         self.n_int = n_int
         self.ntime = ntime
         self.bnds = self.drfIn.time_bnds
-        self.chan_listing = list(self.drfIn.chan_entries.keys())
+        self.chan_listing = list(self.drfIn.chan_2sub.keys())
+        self.sub_chan_list = list(self.drfIn.chan_entries.keys())
         # initializing inner workings
         self.isrunning = False  # set to true while running
         self.signals = ThreadProcessorSignals()  # signal connections
@@ -243,7 +244,7 @@ class DrfProcessor(QRunnable):
             self.terminate(1)
 
         self.isrunning = True
-    
+        self.curchan = list(self.drfIn.chan_2sub.keys())[0]
     @pyqtSlot()
     def run(self):
 
@@ -281,19 +282,21 @@ class DrfProcessor(QRunnable):
 
                 else:
                     st_time, end_time = self.bnds
-
-                for ichan in self.drfIn.chan_2sub.keys():
-                    sr = self.drfIn.sr_dict[ichan]
-                    s_samp = drf.util.time_to_sample(st_time,sr)
-                    e_samp = drf.util.time_to_sample(end_time,sr)
-                    n_st, d1 = self.drfIn.read_sti(s_samp,ichan,e_samp,self.fftbins,self.n_int,self.ntime)
-                    time_list = [drf.util.sample_to_datetime(istime, int(sr)) for istime in n_st]
-                    time_ar = np.concatinate(time_list)
-                    f, sxx, sxx_med = sti_proc_data(d1,sr,self.fftbins)
-                    self.freqs_all = f
-                    self.signals.iterated.emit(
-                            i,self.tabID, time_ar, self.freqs_all, sxx, sxx_med
-                        )
+                ichan = self.curchan
+                
+               
+                sr = self.drfIn.sr_dict[ichan]
+                s_samp = drf.util.time_to_sample(st_time,sr)
+                e_samp = drf.util.time_to_sample(end_time,sr)
+                n_st, d1 = self.drfIn.read_sti(s_samp,ichan,e_samp,self.fftbins,self.n_int,self.ntime)
+                time_list = [drf.util.sample_to_datetime(istime, int(sr)) for istime in n_st]
+                # ipdb.set_trace()
+                time_ar = np.array(time_list)
+                f, sxx, sxx_med = sti_proc_data(d1,sr,self.fftbins)
+                self.freqs_all = f
+                self.signals.iterated.emit(
+                        i,self.tabID, time_ar, self.freqs_all, sxx, sxx_med
+                    )
  
                 if self.streaming:
                     timemodule.sleep(0.08)  # tiny pause to free resources

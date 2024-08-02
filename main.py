@@ -402,18 +402,18 @@ class RunProgram(QMainWindow):
             )
             
 
-            #spectrogram time
-            self.alltabdata[curtabnum]["tabwidgets"]["ctimetitle"] = QLabel(
-                "Spectrogram Time: "
-            )
-            self.alltabdata[curtabnum]["tabwidgets"]["ctimetitle"].setAlignment(
-                Qt.AlignRight | Qt.AlignVCenter
-            )
-            self.alltabdata[curtabnum]["tabwidgets"]["ctime"] = QDoubleSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setRange(0, 0)
-            self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setSingleStep(0.05)
-            self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setDecimals(2)
-            self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setValue(0)
+            # #spectrogram time
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctimetitle"] = QLabel(
+            #     "Spectrogram Time: "
+            # )
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctimetitle"].setAlignment(
+            #     Qt.AlignRight | Qt.AlignVCenter
+            # )
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctime"] = QDoubleSpinBox()
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setRange(0, 0)
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setSingleStep(0.05)
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setDecimals(2)
+            # self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setValue(0)
 
 
 
@@ -534,6 +534,9 @@ class RunProgram(QMainWindow):
                 "chanselect": {"wrows": 3, "wcols": 1, "wrext": 1, "wcolext": 2},
                 "subchansel": {"wrows": 4, "wcols": 1, "wrext": 1, "wcolext": 2},
 
+                # "ctimetitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
+                # "ctime": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},   
+
                 "timerangemintitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
                 "timerangemintext": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
                 "timerangemin": {"wrows": 6, "wcols": 1, "wrext": 1, "wcolext": 2},
@@ -541,8 +544,7 @@ class RunProgram(QMainWindow):
                 "timerangemaxtext": {"wrows": 7, "wcols": 2, "wrext": 1, "wcolext": 1},
                 "timerangemax": {"wrows": 8, "wcols": 1, "wrext": 1, "wcolext": 2},
                 
-                "ctimetitle": {"wrows": 5, "wcols": 1, "wrext": 1, "wcolext": 1},
-                "ctime": {"wrows": 5, "wcols": 2, "wrext": 1, "wcolext": 1},
+
 
                 "cmintitle": {"wrows": 2, "wcols": 3, "wrext": 1, "wcolext": 1},
                 "cmin": {"wrows": 2, "wcols": 4, "wrext": 1, "wcolext": 1},
@@ -928,6 +930,7 @@ class RunProgram(QMainWindow):
             (np.greater_equal(freqs, cfrange[0]), np.less_equal(freqs, cfrange[1])),
             axis=0,
         )
+        
         freqs = freqs[keepvals]
         inds = np.argwhere(keepvals)
         fscale = int(np.ceil(len(freqs) / self.maxNfreqs))
@@ -1047,9 +1050,8 @@ class RunProgram(QMainWindow):
 
         # making datasource QComboBox un-selectable so source can't be changed after processing initiated
         self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].setEnabled(False)
-        self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setEnabled(False)
+        # self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setEnabled(False)
         self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setEnabled(False)
-        self.alltabdata[curtabnum]["tabwidgets"]["ctime"].setEnabled(False)
 
         # data relevant for thread
         fftlen = self.alltabdata[curtabnum]["stats"]["fftlen"]
@@ -1073,12 +1075,21 @@ class RunProgram(QMainWindow):
             nint,
             ntime
         )
-
+        
+        self.alltabdata[curtabnum]['stats']['chandict'] = self.alltabdata[curtabnum]["Processor"].drfIn.chan_2sub
         chan_list = self.alltabdata[curtabnum]["Processor"].chan_listing
         self.threadpool.start(self.alltabdata[curtabnum]["Processor"])
         self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].clear()
         for ichan in chan_list:
             self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].addItem(ichan)
+        
+        sub_chanlist = self.alltabdata[curtabnum]['stats']['chandict'][chan_list[0]]
+        self.alltabdata[curtabnum]["tabwidgets"]['subchansel'].clear()
+        # ipdb.set_trace()
+        self.alltabdata[curtabnum]['stats']['subchansel'] = sub_chanlist[0]
+        for isub in sub_chanlist:
+            self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].addItem(str(isub))
+
         # connecting slots
         self.alltabdata[curtabnum]["Processor"].signals.iterated.connect(
             self.updateUIinfo
@@ -1107,11 +1118,7 @@ class RunProgram(QMainWindow):
             newspectra_cut = np.array([])
             for i in inds:
                 sind = int(np.max([0, i - fsc]))
-                # try:
-                #     sind = int(np.max([0, i-fsc]))
-                # except:
-                #     import ipdb
-                #     ipdb.set_trace()
+
                 eind = int(np.min([lenspec, i + fsc]))
                 newspectra_cut = np.append(
                     newspectra_cut, np.max(newspectra[sind:eind])
@@ -1129,17 +1136,18 @@ class RunProgram(QMainWindow):
 
     @pyqtSlot(int, int, int, np.ndarray, np.ndarray,np.ndarray)
     def updateUIinfo(
-        self, i, tabID, n_st,freqs_all,sxx,sxx_med
+        self, i, tabID, time_ar,freqs_all,sxx,sxx_med
     ):  # TODO: configure PyQtSlot to receive data from processor thread and update spectrogram
         curtabnum = self.tabnumbers.index(tabID)
 
 
         # saving data
-        self.alltabdata[curtabnum]["data"]["ctime"] = n_st
         self.alltabdata[curtabnum]["data"]["spectra"] = sxx
         self.alltabdata[curtabnum]["data"]["spectamed"] = sxx_med
-        
-        self.alltabdata[curtabnum]["data"]["times"] = n_st
+        self.alltabdata[curtabnum]["stats"]["freqs"] = freqs_all
+        self.alltabdata[curtabnum]["data"]["freqs"] = freqs_all
+        self.alltabdata[curtabnum]["data"]["times"] = time_ar
+
         self.alltabdata[curtabnum]["data"]["isplotted"].append(False)
 
         # update spectrogram every 5 points for realtime or 50 points for audio (should be every 1 sec for a 10Hz reprate)
@@ -1152,11 +1160,12 @@ class RunProgram(QMainWindow):
         freqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]
         fsc = int(np.ceil(self.alltabdata[curtabnum]["stats"]["fscale"] / 2))
         inds = self.alltabdata[curtabnum]["stats"]["plotindices"]
-        times =     self.alltabdata[curtabnum]["data"]["times"]
+        times = self.alltabdata[curtabnum]["data"]["times"]
         time_min =  times.min()
         time_max =  times.max()
        
-
+        subchan = self.alltabdata[curtabnum]['stats']['subchansel']
+        plotspectra = plotspectra[::,subchan]
         tdiff = time_max - time_min
         dx = self.alltabdata[curtabnum]["stats"]["df"] / 2
         dy = tdiff / self.alltabdata[curtabnum]["stats"]["ntime"]
