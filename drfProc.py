@@ -124,7 +124,7 @@ class DrfInput:
             x = self.drf_Obj.read_vector(st_sample, n_sample, ichan, isub)
         self.bnds[ichan] = bnds
         self.last_read[ichan] = (st_sample, n_sample)
-        x = x / ref
+        x = x / np.sqrt(ref)
         return x
     
     def read_sti(self,st_sample, chan_entry, en_sample,nfft,nint,ntime):
@@ -274,28 +274,31 @@ class DrfProcessor(QRunnable):
                 # storing FFT settings (this can't happen in __init__ because it might emit updated settings before the slot is connected)
                 
                 # update teh bounds
+                ichan = self.curchan
+                
+               
+                sr = self.drfIn.sr_dict[ichan]
                 self.drfIn.bnds_update()
-                self.updatesettings(self.fftbins, self.n_int,self.ntime, self.drfIn.time_bnds[0], self.drfIn.time_bnds[1])
+                self.updatesettings(sr,self.fftbins, self.n_int,self.ntime, self.drfIn.time_bnds[0], self.drfIn.time_bnds[1])
                 if self.streaming:
                     end_time = self.drfIn.time_bnds[-1]
                     st_time = end_time-self.streamtime
 
                 else:
                     st_time, end_time = self.bnds
-                ichan = self.curchan
-                
-               
-                sr = self.drfIn.sr_dict[ichan]
+
                 s_samp = drf.util.time_to_sample(st_time,sr)
                 e_samp = drf.util.time_to_sample(end_time,sr)
                 n_st, d1 = self.drfIn.read_sti(s_samp,ichan,e_samp,self.fftbins,self.n_int,self.ntime)
                 time_list = [drf.util.sample_to_datetime(istime, int(sr)) for istime in n_st]
-                # ipdb.set_trace()
                 time_ar = np.array(time_list)
                 f, sxx, sxx_med = sti_proc_data(d1,sr,self.fftbins)
+                eps = 1e-15
+                sxx_dbfs = 10*np.log10(sxx+eps)
+                sxx_med_dbfs = 10*np.log10(sxx_med+eps) 
                 self.freqs_all = f
                 self.signals.iterated.emit(
-                        i,self.tabID, time_ar, self.freqs_all, sxx, sxx_med
+                        i,self.tabID, time_ar, self.freqs_all, sxx_dbfs, sxx_med_dbfs
                     )
  
                 if self.streaming:
@@ -314,15 +317,15 @@ class DrfProcessor(QRunnable):
 
 
     @pyqtSlot(float, float, float,float,float)
-    def updatesettings_slot(self, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
-        self.updatesettings( fftbins,nint,ntime,bnd_beg,bnd_end)
+    def updatesettings_slot(self, sr, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
+        self.updatesettings( sr, fftbins,nint,ntime,bnd_beg,bnd_end)
 
-    def updatesettings(self, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
+    def updatesettings(self, sr, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
         self.fftbins = int(fftbins)
         self.n_int = int(nint)
         self.ntime = int(ntime)
         self.bnds = (bnd_beg,bnd_end)
-        self.signals.statsupdated.emit(self.tabID,self.fftbins,self.n_int,self.ntime,self.bnds)
+        self.signals.statsupdated.emit(self.tabID,sr, self.fftbins,self.n_int,self.ntime,self.bnds)
 
     @pyqtSlot()
     def abort(self):  # executed when user selects "Stop" button
@@ -430,9 +433,9 @@ def proc_data(d1, sr, nfft, dt):
 # initializing signals for data to be passed back to main loop
 class ThreadProcessorSignals(QObject):
     iterated = pyqtSignal(
-        int, int, int, np.ndarray, np.ndarray,np.ndarray
+        int, int, np.ndarray, np.ndarray, np.ndarray,np.ndarray
     )  # signal to add another entry to raw data arrays
-    statsupdated = pyqtSignal(int, int, float, int, tuple)
+    statsupdated = pyqtSignal(int, Fraction, int, float, int, tuple)
     terminated = pyqtSignal(
         int, int
     )  # signal that the loop has been terminated (by user input or program error)
