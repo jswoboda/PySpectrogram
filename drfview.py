@@ -78,12 +78,13 @@ from scipy.io import wavfile as sciwavfile
 import wave
 
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib import cm
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-
+matplotlib.use('Qt5Agg')
 import drfProc as dp
 
 import digital_rf as drf
@@ -221,10 +222,9 @@ class RunProgram(QMainWindow):
                 "fs": None,
                 "freqs": [],
                 "N": None,
-                "df": None,
                 "timerangemin": 0,
                 "timerangemax": 10000,
-                "fftlen": 1024,
+                "fftlen": 128,
                 "crange": [-70, -40],
                 "nint": 0.1,
                 "ntime": 100,
@@ -250,7 +250,7 @@ class RunProgram(QMainWindow):
                         "times": np.array([]),
                         "freqs": np.array([]),
                         "spectra": np.array([[]]),
-                        "isplotted": [],
+                        "timebnds": [],
                     },
                 }
             )
@@ -277,13 +277,13 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["SpectroCanvas"] = FigureCanvas(
                 self.alltabdata[curtabnum]["SpectroFig"]
             )
-            self.alltabdata[curtabnum]["SpectroAxes"] = plt.axes()
-            self.alltabdata[curtabnum]["SpectroAxes"].set_ylabel("Time (s)")
+            self.alltabdata[curtabnum]["SpectroAxes"] = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_subplot(111)#plt.axes()
+            self.alltabdata[curtabnum]["SpectroAxes"].set_ylabel("Time UTC")
             time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
             time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
             t_min, t_max = self.get_datetime_bnds(time_min,time_max)
             self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(t_min, t_max)
-            self.alltabdata[curtabnum]["SpectroAxes"].set_xlabel("Frequency (Hz)")
+            self.alltabdata[curtabnum]["SpectroAxes"].set_xlabel("Frequency (kHz)")
             self.alltabdata[curtabnum]["SpectroCanvas"].setStyleSheet(
                 "background-color:transparent;"
             )
@@ -459,7 +459,7 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setRange(32, 1048576)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setDecimals(1)
-            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setValue(1024)
+            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setValue(initstats["fftlen"])
 
             # Repetition rate  dt
             self.alltabdata[curtabnum]["tabwidgets"]["ninttitle"] = QLabel(
@@ -762,6 +762,13 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["stats"]["subchansel"] = index
 
     def getspecs(self):
+        """Updates to the text on the info on the specs
+
+        Returns
+        -------
+        text : str
+            Info string for the data set.
+        """
         curtabnum, _ = self.whatTab()
         stats = self.alltabdata[curtabnum]["stats"]
 
@@ -770,7 +777,7 @@ class RunProgram(QMainWindow):
         if stats["updated"]:
             fs = stats["sr"]
             nfft = stats["fftlen"]
-            df = np.round(stats["df"], 4)
+            df = int(fs/nfft)
 
             if fs > 1000:
                 fsnunits = "kHz"
@@ -786,8 +793,21 @@ class RunProgram(QMainWindow):
 
 
     def get_datetime_bnds(self,tmin,tmax):
-        """Returns the bounds in datetime format.
+        """Returns the bounds given from the slider in datetime format.
         
+        Parameters
+        ----------
+        tmin : int
+            Lower bound set by the slider.
+        tmax : int
+            Upper bound set by the slider.
+
+        Returns
+        -------
+        dt_st : datetime
+            Desired start time in datetime format.
+        dt_et : datetime
+            Desired end time in datetime format.
         """
         curtabnum, _ = self.whatTab()
         if self.alltabdata[curtabnum]["Processor"] is None:
@@ -804,11 +824,8 @@ class RunProgram(QMainWindow):
         return drf.util.sample_to_datetime(int(des_st),1),drf.util.sample_to_datetime(int(des_end),1)
 
 
-
-    def getendtime(self):
-        curtabnum, _ = self.whatTab()
-
     def updatecurtabsettings(self):
+        """This calls pullsettings which updates """
         curtabnum, _ = self.whatTab()
         self.pullsettings(curtabnum, True)
 
@@ -911,10 +928,10 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["stats"]['fftlen'] = fftbins
         self.alltabdata[curtabnum]["stats"]['nint'] = n_int
         self.alltabdata[curtabnum]["stats"]['ntime'] = n_time
+        self.alltabdata[curtabnum]["data"]['timebnds'] = time_limss
  
 
         self.alltabdata[curtabnum]["stats"]["sr"] = sr
-        self.alltabdata[curtabnum]["stats"]["df"] = float(sr/fftbins)
         freqs = np.fft.fftshift(np.fft.fftfreq(fftbins, float(1/sr)))
         self.alltabdata[curtabnum]["stats"]["freqs"] = freqs
         self.alltabdata[curtabnum]["data"]["freqs"] = freqs
@@ -1057,7 +1074,6 @@ class RunProgram(QMainWindow):
 
         # making datasource QComboBox un-selectable so source can't be changed after processing initiated
         self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].setEnabled(False)
-        self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setEnabled(False)
 
         # data relevant for thread
         fftlen = self.alltabdata[curtabnum]["stats"]["fftlen"]
@@ -1153,8 +1169,8 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["data"]["freqs"] = freqs_all
         self.alltabdata[curtabnum]["data"]["times"] = time_ar
 
-        self.alltabdata[curtabnum]["data"]["isplotted"].append(False)
         self.update_plot(curtabnum)
+
     def update_plot(self,curtabnum):
         plotspectra = self.alltabdata[curtabnum]["data"]["spectra"]
         crange = self.alltabdata[curtabnum]["stats"]["crange"]
@@ -1164,30 +1180,25 @@ class RunProgram(QMainWindow):
         times = self.alltabdata[curtabnum]["data"]["times"]
         time_min = times.min()
         time_max = times.max()
-
         subchan = self.alltabdata[curtabnum]["stats"]["subchansel"]
         plotspectra = plotspectra[..., subchan]
-        tdiff = time_max - time_min
-        dx = self.alltabdata[curtabnum]["stats"]["df"] / 2
-        dy = tdiff / self.alltabdata[curtabnum]["stats"]["ntime"]
-        extent = [pltfreqs[0] - dx, pltfreqs[-1] + dx, times[0] - dy, times[-1] + dy]
+        self.alltabdata[curtabnum]["SpectroAxes"].cla()
         self.alltabdata[curtabnum]["SpectroAxes"].pcolormesh(
             fvec*1e-3,
             times,
             plotspectra.T,
-            cmap=self.spectralmap,
+            cmap="viridis",
             vmin=crange[0],
             vmax=crange[1],
         )
-        
-        # self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0]*1e-3, pltfreqs[-1]*1e-3)
+        extent = [fvec[0]*1e-3,fvec[-1]*1e-3,time_min,time_max]
+        # self.alltabdata[curtabnum]["SpectroAxes"].imshow(plotspectra.T,cmap="viridis",aspect="auto",vmin=crange[0],vmax=crange[1],extent=extent)
+        self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0]*1e-3, pltfreqs[-1]*1e-3)
 
-        # self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(time_min, time_max)
+        self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(time_min, time_max)
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
-        print("started draw")
-        time.sleep(30)
-        ipdb.set_trace()
-        print("finished sleep")
+        print("Update plot")
+
 
     @pyqtSlot(int, int)
     def updateUIfinal(
@@ -1231,7 +1242,7 @@ class RunProgram(QMainWindow):
         cbar_cm_object = cm.ScalarMappable(
             norm=Normalize(vmin=crange[0], vmax=crange[1]), cmap=spectralmap
         )
-        cbar = fig.colorbar(cbar_cm_object, ax=ax)
+        cbar = plt.colorbar(cbar_cm_object, ax=ax)
         cbar.set_label("dBFS")
         return cbar_cm_object
 
@@ -1314,12 +1325,6 @@ class RunProgram(QMainWindow):
         spectra = spectra[np.ix_(keepfreqs, keeptimes)]
 
         # calculating pixel extent for plt.imshow()
-        time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
-        time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
-        tdiff = time_max - time_min
-        dx = self.alltabdata[curtabnum]["stats"]["df"]
-        dy = tdiff / self.alltabdata[curtabnum]["stats"]["ntime"]
-        extent = [times[0] - dx, times[-1] + dx, freqs[0] - dy, freqs[-1] + dy]
 
         # making figure
         fig = plt.figure()
