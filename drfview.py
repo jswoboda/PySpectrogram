@@ -224,7 +224,7 @@ class RunProgram(QMainWindow):
                 "N": None,
                 "timerangemin": 0,
                 "timerangemax": 10000,
-                "fftlen": 128,
+                "fftlen": 1024,
                 "crange": [-70, -40],
                 "nint": 0.1,
                 "ntime": 100,
@@ -251,6 +251,7 @@ class RunProgram(QMainWindow):
                         "freqs": np.array([]),
                         "spectra": np.array([[]]),
                         "timebnds": [],
+                        "plotfreqs": np.fft.fftshift(np.fft.fftfreq(1024,d=1e-6))
                     },
                 }
             )
@@ -962,9 +963,9 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["stats"]["plotindices"] = [
             inds[i][0] for i in relplotindices
         ]
-        self.alltabdata[curtabnum]["data"]["plotfreqs"] = [
+        self.alltabdata[curtabnum]["data"]["plotfreqs"] = np.array([
             freqs[i] for i in relplotindices
-        ]
+        ])
         self.pullsettings(
             curtabnum, False
         )  # dont update processor to prevent recursion
@@ -998,15 +999,17 @@ class RunProgram(QMainWindow):
         time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
         time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
         dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
+        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
         frange = self.alltabdata[curtabnum]["stats"]["frange"]
         if dt_b ==dt_e:
             ipdb.set_trace()
         self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(dt_b, dt_e)
-        self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(frange[0], frange[1])
+        self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
 
     def startprocessor(self):
-        import traceback
+        """This method pulls the settings and 
+        """
 
         if self.threadpool.activeThreadCount() + 1 > self.threadpool.maxThreadCount():
             self.postwarning(
@@ -1174,12 +1177,15 @@ class RunProgram(QMainWindow):
     def update_plot(self,curtabnum):
         plotspectra = self.alltabdata[curtabnum]["data"]["spectra"]
         crange = self.alltabdata[curtabnum]["stats"]["crange"]
-        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]
+        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
         fvec = self.alltabdata[curtabnum]["data"]["freqs"]
 
         times = self.alltabdata[curtabnum]["data"]["times"]
-        time_min = times.min()
-        time_max = times.max()
+        # time_min = times.min()
+        # time_max = times.max()
+        time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
+        time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
+        dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
         subchan = self.alltabdata[curtabnum]["stats"]["subchansel"]
         plotspectra = plotspectra[..., subchan]
         self.alltabdata[curtabnum]["SpectroAxes"].cla()
@@ -1193,9 +1199,9 @@ class RunProgram(QMainWindow):
         )
         extent = [fvec[0]*1e-3,fvec[-1]*1e-3,time_min,time_max]
         # self.alltabdata[curtabnum]["SpectroAxes"].imshow(plotspectra.T,cmap="viridis",aspect="auto",vmin=crange[0],vmax=crange[1],extent=extent)
-        self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0]*1e-3, pltfreqs[-1]*1e-3)
+        self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
 
-        self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(time_min, time_max)
+        self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(dt_b, dt_e)
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
         print("Update plot")
 
@@ -1310,7 +1316,11 @@ class RunProgram(QMainWindow):
         freqs = self.alltabdata[curtabnum]["data"]["freqs"]  # pulling data to plot
         times = self.alltabdata[curtabnum]["data"]["times"]
         spectra = self.alltabdata[curtabnum]["data"]["spectra"]
+        plot_freqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
 
+        time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
+        time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
+        dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
         # trimming data
         keepfreqs = np.all(
             (np.greater_equal(freqs, freqrange[0]), np.less_equal(freqs, freqrange[1])),
@@ -1344,8 +1354,8 @@ class RunProgram(QMainWindow):
         # formatting
         ax.set_ylabel("Time (s)")
         ax.set_xlabel("Frequency (kHz)")
-        ax.set_xlim(freqrange[0], freqrange[1])
-        ax.set_ylim(timerange[0], timerange[1])
+        ax.set_xlim(plot_freqs[0], plot_freqs[1])
+        ax.set_ylim(dt_b, dt_e)
 
         # saving figure
         fig.savefig(filename, format="png", dpi=300)
