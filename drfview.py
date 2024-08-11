@@ -278,7 +278,12 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["SpectroCanvas"] = FigureCanvas(
                 self.alltabdata[curtabnum]["SpectroFig"]
             )
-            self.alltabdata[curtabnum]["SpectroAxes"] = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_subplot(111)#plt.axes()
+            gs = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_gridspec(nrows=4,ncols=5)
+            self.alltabdata[curtabnum]["PSDAxes"] = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_subplot(gs[0,:-1])
+            self.alltabdata[curtabnum]["PSDAxes"].set_xlabel("Frequency (kHz)")
+            self.alltabdata[curtabnum]["PSDAxes"].set_ylabel("dBFS")
+
+            self.alltabdata[curtabnum]["SpectroAxes"] = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_subplot(gs[1:,:])#plt.axes()
             self.alltabdata[curtabnum]["SpectroAxes"].set_ylabel("Time UTC")
             time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
             time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
@@ -998,13 +1003,17 @@ class RunProgram(QMainWindow):
     def updateAxesLimits(self, curtabnum):
         time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
         time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
+        crange = self.alltabdata[curtabnum]["stats"]["crange"]
         dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
         pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
         frange = self.alltabdata[curtabnum]["stats"]["frange"]
         if dt_b ==dt_e:
             ipdb.set_trace()
-        self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(dt_b, dt_e)
+
+        self.alltabdata[curtabnum]["PSDAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
+        self.alltabdata[curtabnum]["PSDAxes"].set_ylim(crange[0], crange[1])
         self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
+        self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(dt_b, dt_e)
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
 
     def startprocessor(self):
@@ -1176,6 +1185,7 @@ class RunProgram(QMainWindow):
 
     def update_plot(self,curtabnum):
         plotspectra = self.alltabdata[curtabnum]["data"]["spectra"]
+        plotmedspec = self.alltabdata[curtabnum]["data"]["spectamed"]
         crange = self.alltabdata[curtabnum]["stats"]["crange"]
         pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
         fvec = self.alltabdata[curtabnum]["data"]["freqs"]
@@ -1188,6 +1198,13 @@ class RunProgram(QMainWindow):
         dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
         subchan = self.alltabdata[curtabnum]["stats"]["subchansel"]
         plotspectra = plotspectra[..., subchan]
+
+        self.alltabdata[curtabnum]["PSDAxes"].cla()
+        hands = self.alltabdata[curtabnum]["PSDAxes"].plot(fvec*1e-3,plotmedspec)
+        self.alltabdata[curtabnum]["PSDAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
+        self.alltabdata[curtabnum]["PSDAxes"].set_ylim(crange[0], crange[1])
+        self.alltabdata[curtabnum]["PSDAxes"].grid(True)
+        
         self.alltabdata[curtabnum]["SpectroAxes"].cla()
         self.alltabdata[curtabnum]["SpectroAxes"].pcolormesh(
             fvec*1e-3,
