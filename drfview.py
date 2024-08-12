@@ -84,7 +84,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.colors import ListedColormap, Normalize
 from matplotlib import cm
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-matplotlib.use('Qt5Agg')
+
+matplotlib.use("Qt5Agg")
 import drfProc as dp
 
 import digital_rf as drf
@@ -172,8 +173,6 @@ class RunProgram(QMainWindow):
         # identifying use method["streaming", "written"]
         self.usetype = "written"
 
-        self.audioWindowOpened = False
-
         # creating threadpool
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(7)
@@ -251,7 +250,7 @@ class RunProgram(QMainWindow):
                         "freqs": np.array([]),
                         "spectra": np.array([[]]),
                         "timebnds": [],
-                        "plotfreqs": np.fft.fftshift(np.fft.fftfreq(1024,d=1e-6))
+                        "plotfreqs": np.fft.fftshift(np.fft.fftfreq(1024, d=1e-6)),
                     },
                 }
             )
@@ -278,16 +277,24 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["SpectroCanvas"] = FigureCanvas(
                 self.alltabdata[curtabnum]["SpectroFig"]
             )
-            gs = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_gridspec(nrows=4,ncols=5)
-            self.alltabdata[curtabnum]["PSDAxes"] = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_subplot(gs[0,:-1])
+            gs = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_gridspec(
+                nrows=4, ncols=5
+            )
+            self.alltabdata[curtabnum]["PSDAxes"] = self.alltabdata[curtabnum][
+                "SpectroCanvas"
+            ].figure.add_subplot(gs[0, :-1])
             self.alltabdata[curtabnum]["PSDAxes"].set_xlabel("Frequency (kHz)")
             self.alltabdata[curtabnum]["PSDAxes"].set_ylabel("dBFS")
 
-            self.alltabdata[curtabnum]["SpectroAxes"] = self.alltabdata[curtabnum]["SpectroCanvas"].figure.add_subplot(gs[1:,:])#plt.axes()
+            self.alltabdata[curtabnum]["SpectroAxes"] = self.alltabdata[curtabnum][
+                "SpectroCanvas"
+            ].figure.add_subplot(
+                gs[1:, :]
+            )  # plt.axes()
             self.alltabdata[curtabnum]["SpectroAxes"].set_ylabel("Time UTC")
             time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
             time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
-            t_min, t_max = self.get_datetime_bnds(time_min,time_max)
+            t_min, t_max = self.get_datetime_bnds(time_min, time_max)
             self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(t_min, t_max)
             self.alltabdata[curtabnum]["SpectroAxes"].set_xlabel("Frequency (kHz)")
             self.alltabdata[curtabnum]["SpectroCanvas"].setStyleSheet(
@@ -389,7 +396,9 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"] = QSlider(
                 Qt.Orientation.Horizontal
             )
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setRange(initstats["timerangemin"], initstats["timerangemax"])
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setRange(
+                initstats["timerangemin"], initstats["timerangemax"]
+            )
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemin"].setValue(
                 initstats["timerangemin"]
             )
@@ -403,14 +412,18 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"] = QSlider(
                 Qt.Orientation.Horizontal
             )
-            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setRange(initstats["timerangemin"], initstats["timerangemax"])
+            self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setRange(
+                initstats["timerangemin"], initstats["timerangemax"]
+            )
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setValue(
                 initstats["timerangemax"]
             )
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemax"].setPageStep(10)
 
-            t_min, t_max = self.get_datetime_bnds(initstats["timerangemin"],initstats["timerangemax"])
+            t_min, t_max = self.get_datetime_bnds(
+                initstats["timerangemin"], initstats["timerangemax"]
+            )
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemintext"] = QLabel(
                 t_min.isoformat()
             )
@@ -424,7 +437,6 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"].setAlignment(
                 Qt.AlignRight | Qt.AlignVCenter
             )
-
 
             # Color bar settings
             self.alltabdata[curtabnum]["tabwidgets"]["cmintitle"] = QLabel(
@@ -441,15 +453,13 @@ class RunProgram(QMainWindow):
             )
             self.alltabdata[curtabnum]["tabwidgets"]["cmin"] = QDoubleSpinBox()
             self.alltabdata[curtabnum]["tabwidgets"]["cmin"].setRange(-200, 0)
-            self.alltabdata[curtabnum]["tabwidgets"]["cmin"].setSingleStep(0.1)
-            self.alltabdata[curtabnum]["tabwidgets"]["cmin"].setDecimals(1)
+            self.alltabdata[curtabnum]["tabwidgets"]["cmin"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["cmin"].setValue(
                 initstats["crange"][0]
             )
             self.alltabdata[curtabnum]["tabwidgets"]["cmax"] = QDoubleSpinBox()
             self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setRange(-150, 0)
-            self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setSingleStep(0.1)
-            self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setDecimals(1)
+            self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setValue(
                 initstats["crange"][1]
             )
@@ -464,8 +474,9 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"] = QDoubleSpinBox()
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setRange(32, 1048576)
             self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setSingleStep(1)
-            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setDecimals(1)
-            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setValue(initstats["fftlen"])
+            self.alltabdata[curtabnum]["tabwidgets"]["fftlen"].setValue(
+                initstats["fftlen"]
+            )
 
             # Repetition rate  dt
             self.alltabdata[curtabnum]["tabwidgets"]["ninttitle"] = QLabel(
@@ -477,7 +488,6 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["nint"] = QDoubleSpinBox()
             self.alltabdata[curtabnum]["tabwidgets"]["nint"].setRange(1, 100000)
             self.alltabdata[curtabnum]["tabwidgets"]["nint"].setSingleStep(1)
-            self.alltabdata[curtabnum]["tabwidgets"]["nint"].setDecimals(1)
             self.alltabdata[curtabnum]["tabwidgets"]["nint"].setValue(1)
 
             # Repetition rate  dt
@@ -490,7 +500,6 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["ntime"] = QDoubleSpinBox()
             self.alltabdata[curtabnum]["tabwidgets"]["ntime"].setRange(100, 100000)
             self.alltabdata[curtabnum]["tabwidgets"]["ntime"].setSingleStep(1)
-            self.alltabdata[curtabnum]["tabwidgets"]["ntime"].setDecimals(1)
             self.alltabdata[curtabnum]["tabwidgets"]["ntime"].setValue(100)
 
             # Min max frequencies
@@ -642,16 +651,14 @@ class RunProgram(QMainWindow):
                 Qt.AlignRight | Qt.AlignVCenter
             )
             self.alltabdata[curtabnum]["tabwidgets"]["savecmin"] = QDoubleSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setRange(0.0, 299.9)
-            self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setSingleStep(0.1)
-            self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setDecimals(1)
+            self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setRange(-200, 0)
+            self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setValue(
                 initstats["crange"][0]
             )
             self.alltabdata[curtabnum]["tabwidgets"]["savecmax"] = QDoubleSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setRange(0.1, 300)
-            self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setSingleStep(0.1)
-            self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setDecimals(1)
+            self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setRange(-150, 0)
+            self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setValue(
                 initstats["crange"][1]
             )
@@ -669,13 +676,13 @@ class RunProgram(QMainWindow):
                 Qt.AlignRight | Qt.AlignVCenter
             )
             self.alltabdata[curtabnum]["tabwidgets"]["savefmin"] = QSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["savefmin"].setRange(0, 49999)
+            self.alltabdata[curtabnum]["tabwidgets"]["savefmin"].setRange(-1000, 1000)
             self.alltabdata[curtabnum]["tabwidgets"]["savefmin"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["savefmin"].setValue(
                 initstats["frange"][0]
             )
             self.alltabdata[curtabnum]["tabwidgets"]["savefmax"] = QSpinBox()
-            self.alltabdata[curtabnum]["tabwidgets"]["savefmax"].setRange(0, 50000)
+            self.alltabdata[curtabnum]["tabwidgets"]["savefmax"].setRange(-1000, 1000)
             self.alltabdata[curtabnum]["tabwidgets"]["savefmax"].setSingleStep(1)
             self.alltabdata[curtabnum]["tabwidgets"]["savefmax"].setValue(
                 initstats["frange"][1]
@@ -748,13 +755,15 @@ class RunProgram(QMainWindow):
             String for the channel name.
         """
         curtabnum, _ = self.whatTab()
-        if str_in in  list(self.alltabdata[curtabnum]["stats"]["chandict"].keys()):
+        if str_in in list(self.alltabdata[curtabnum]["stats"]["chandict"].keys()):
             self.alltabdata[curtabnum]["stats"]["chanselect"] = str_in
             sub_chanlist = self.alltabdata[curtabnum]["stats"]["chandict"][str_in]
             self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].clear()
             self.alltabdata[curtabnum]["stats"]["subchansel"] = sub_chanlist[0]
             for isub in sub_chanlist:
-                self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].addItem(str(isub))
+                self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].addItem(
+                    str(isub)
+                )
 
     def sub_ind_changed(self, index):
         """Control function for subchannel combox box to change sub channel and record it.
@@ -783,7 +792,7 @@ class RunProgram(QMainWindow):
         if stats["updated"]:
             fs = stats["sr"]
             nfft = stats["fftlen"]
-            df = int(fs/nfft)
+            df = int(fs / nfft)
 
             if fs > 1000:
                 fsnunits = "kHz"
@@ -797,10 +806,9 @@ class RunProgram(QMainWindow):
         text = f"Specifications: \nSampling Frequency {fs} {fsnunits}\nNyquist Frequency {fn} {fsnunits}\nNFFT: {nfft}\nFrequency Resolution: {df} Hz"
         return text
 
-
-    def get_datetime_bnds(self,tmin,tmax):
+    def get_datetime_bnds(self, tmin, tmax):
         """Returns the bounds given from the slider in datetime format.
-        
+
         Parameters
         ----------
         tmin : int
@@ -817,26 +825,37 @@ class RunProgram(QMainWindow):
         """
         curtabnum, _ = self.whatTab()
         if self.alltabdata[curtabnum]["Processor"] is None:
-            return drf.util.sample_to_datetime(int(1451661840),1),drf.util.sample_to_datetime(int(1451665440),1)
-        
+            return drf.util.sample_to_datetime(
+                int(1451661840), 1
+            ), drf.util.sample_to_datetime(int(1451665440), 1)
+
         min_part = tmin
         max_part = tmax
 
         bnds = self.alltabdata[curtabnum]["Processor"].drfIn.time_bnds
-        bnds_ext = bnds[1]-bnds[0]
+        bnds_ext = bnds[1] - bnds[0]
         tab_wid_ext = 10000
         des_st = (min_part * bnds_ext) / tab_wid_ext + bnds[0]
         des_end = (max_part * bnds_ext) / tab_wid_ext + bnds[0]
-        return drf.util.sample_to_datetime(int(des_st),1),drf.util.sample_to_datetime(int(des_end),1)
-
+        return drf.util.sample_to_datetime(int(des_st), 1), drf.util.sample_to_datetime(
+            int(des_end), 1
+        )
 
     def updatecurtabsettings(self):
-        """This calls pullsettings which updates """
+        """This is the callback function for the updatesettings button. It calls the pull settings function by giving it the current tab and setting the update processor bool to true."""
         curtabnum, _ = self.whatTab()
         self.pullsettings(curtabnum, True)
 
     def pullsettings(self, curtabnum, updateProcessor):
+        """Method passes settings from the GUI to the drf processor
 
+        Parameters
+        ----------
+        curtabnum : int
+            Current tab that will be updated.
+        updateProcessor: bool
+            If true will send information back to the processor.
+        """
         # get the time settings
         self.alltabdata[curtabnum]["stats"]["timerangemin"] = self.alltabdata[
             curtabnum
@@ -846,8 +865,11 @@ class RunProgram(QMainWindow):
             curtabnum
         ]["tabwidgets"]["timerangemax"].value()
 
-        # translate the sliders to datetime and then to a timestamp 
-        dt_b,dt_e = self.get_datetime_bnds(self.alltabdata[curtabnum]["stats"]["timerangemin"], self.alltabdata[curtabnum]["stats"]["timerangemax"])
+        # translate the sliders to datetime and then to a timestamp
+        dt_b, dt_e = self.get_datetime_bnds(
+            self.alltabdata[curtabnum]["stats"]["timerangemin"],
+            self.alltabdata[curtabnum]["stats"]["timerangemax"],
+        )
         new_tmin = drf.util.datetime_to_timestamp(dt_b)
         new_tmax = drf.util.datetime_to_timestamp(dt_e)
 
@@ -866,7 +888,6 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setValue(oldcrange[1])
             self.postwarning("Maximum color range must exceed minimum value!")
 
-
         oldfrange = self.alltabdata[curtabnum]["stats"]["frange"]
         self.alltabdata[curtabnum]["stats"]["frange"] = [
             self.alltabdata[curtabnum]["tabwidgets"]["fmin"].value(),
@@ -880,10 +901,12 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["fmin"].setValue(oldfrange[0])
             self.alltabdata[curtabnum]["tabwidgets"]["fmax"].setValue(oldfrange[1])
             self.postwarning("Maximum frequency range must exceed minimum value!")
+
         # channel
         self.alltabdata[curtabnum]["stats"]["chanselect"] = self.alltabdata[curtabnum][
             "tabwidgets"
         ]["chanselect"].currentText()
+
         # Info for spectrogram
         self.alltabdata[curtabnum]["stats"]["nint"] = self.alltabdata[curtabnum][
             "tabwidgets"
@@ -897,7 +920,7 @@ class RunProgram(QMainWindow):
 
         self.updateAxesLimits(curtabnum)
         self.updatecolorbar(curtabnum, self.alltabdata[curtabnum]["stats"]["crange"])
-
+        # update the processor
         if self.alltabdata[curtabnum]["isprocessing"] and updateProcessor:
             self.alltabdata[curtabnum]["Processor"].updatesettings_slot(
                 self.alltabdata[curtabnum]["stats"]["fftlen"],
@@ -926,24 +949,39 @@ class RunProgram(QMainWindow):
         )
 
     @pyqtSlot(int, Fraction, int, float, int, tuple)
-    def updatesettingsfromprocessor(
-        self, tabID, sr,fftbins, n_int,n_time,time_limss
-    ):  # TODO: SORT OUT FMIN AND FMAX STUFF + FREQUENCY TRIMMING!!!
+    def updatesettingsfromprocessor(self, tabID, sr, fftbins, n_int, n_time, time_lims):
+        """This the function that will accept values from the processor. This will update the stats dictionary with the actual status from the processor.
+
+        Parameters
+        ----------
+        tabID : int
+            Tab number assocated with the processor.
+        sr : fraction
+            Sample rate in Hz.
+        fftbins : int
+            Number of fftbins for the STI.
+        n_int : int
+            Number of integrations for each FFT.
+        n_time : int
+            Number of time points across the data set.
+        time_lims : tuple
+            The beginning and ending times of the dataset in float format of the number of seconds since midnight Jan 1, 1970.
+        """
+
         curtabnum = self.tabnumbers.index(tabID)
         self.alltabdata[curtabnum]["stats"]["updated"] = True
-        self.alltabdata[curtabnum]["stats"]['fftlen'] = fftbins
-        self.alltabdata[curtabnum]["stats"]['nint'] = n_int
-        self.alltabdata[curtabnum]["stats"]['ntime'] = n_time
-        self.alltabdata[curtabnum]["data"]['timebnds'] = time_limss
- 
+        self.alltabdata[curtabnum]["stats"]["fftlen"] = fftbins
+        self.alltabdata[curtabnum]["stats"]["nint"] = n_int
+        self.alltabdata[curtabnum]["stats"]["ntime"] = n_time
+        self.alltabdata[curtabnum]["data"]["timebnds"] = time_lims
 
         self.alltabdata[curtabnum]["stats"]["sr"] = sr
-        freqs = np.fft.fftshift(np.fft.fftfreq(fftbins, float(1/sr)))
+        freqs = np.fft.fftshift(np.fft.fftfreq(fftbins, float(1 / sr)))
         self.alltabdata[curtabnum]["stats"]["freqs"] = freqs
         self.alltabdata[curtabnum]["data"]["freqs"] = freqs
 
-        minF = int(np.min(freqs)*1e-3)
-        maxF = int(np.max(freqs)*1e-3)
+        minF = int(np.min(freqs) * 1e-3)
+        maxF = int(np.max(freqs) * 1e-3)
         self.alltabdata[curtabnum]["tabwidgets"]["fmin"].setRange(minF, maxF)
         self.alltabdata[curtabnum]["tabwidgets"]["fmax"].setRange(minF, maxF)
         self.alltabdata[curtabnum]["tabwidgets"]["savefmin"].setRange(minF, maxF)
@@ -957,7 +995,10 @@ class RunProgram(QMainWindow):
         cfrange = self.alltabdata[curtabnum]["stats"]["frange"]
 
         keepvals = np.all(
-            (np.greater_equal(freqs, 1e3*cfrange[0]), np.less_equal(freqs, 1e3*cfrange[1])),
+            (
+                np.greater_equal(freqs, 1e3 * cfrange[0]),
+                np.less_equal(freqs, 1e3 * cfrange[1]),
+            ),
             axis=0,
         )
         freqs = freqs[keepvals]
@@ -968,15 +1009,28 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["stats"]["plotindices"] = [
             inds[i][0] for i in relplotindices
         ]
-        self.alltabdata[curtabnum]["data"]["plotfreqs"] = np.array([
-            freqs[i] for i in relplotindices
-        ])
+        self.alltabdata[curtabnum]["data"]["plotfreqs"] = np.array(
+            [freqs[i] for i in relplotindices]
+        )
         self.pullsettings(
             curtabnum, False
         )  # dont update processor to prevent recursion
 
     def gencolorbar(self, curtabnum, crange):
+        """Create the colorbar and return the reference to it.
 
+        Parameters
+        ----------
+        curtabnum : int
+            Tab number assocated with the processor.
+        crange : list
+            Color bar range in dBFS.
+
+        Returns
+        -------
+        cbar_cm_object : colorbar_obj
+            Color bar object matplotlib makes.
+        """
         self.cdata = np.array(
             cm.viridis.colors
         )  # np.genfromtxt('spectralcolors.txt',delimiter=',')
@@ -996,20 +1050,36 @@ class RunProgram(QMainWindow):
         return cbar_cm_object
 
     def updatecolorbar(self, curtabnum, crange):
+        """Update the colorbar.
+
+        Parameters
+        ----------
+        curtabnum : int
+            Tab number assocated with the processor.
+        crange : list
+            Color bar range in dBFS.
+        """
+
         self.alltabdata[curtabnum]["colorbar"].set_clim(crange[0], crange[1])
         self.levels = np.linspace(crange[0], crange[1], self.npoints)
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
 
     def updateAxesLimits(self, curtabnum):
+        """Update the axis limits of the graphs.
+
+        Parameters
+        ----------
+        curtabnum : int
+            Tab number assocated with the processor.
+        """
         time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
         time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
         crange = self.alltabdata[curtabnum]["stats"]["crange"]
-        dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
-        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
+        dt_b, dt_e = self.get_datetime_bnds(time_min, time_max)
+        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"] * 1e-3
         frange = self.alltabdata[curtabnum]["stats"]["frange"]
-        if dt_b ==dt_e:
-            ipdb.set_trace()
 
+        # Update the limits for the PSD and STI axes
         self.alltabdata[curtabnum]["PSDAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
         self.alltabdata[curtabnum]["PSDAxes"].set_ylim(crange[0], crange[1])
         self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
@@ -1017,8 +1087,7 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
 
     def startprocessor(self):
-        """This method pulls the settings and 
-        """
+        """This method starts the processor tasks and opens a dialog box to find the data sets."""
 
         if self.threadpool.activeThreadCount() + 1 > self.threadpool.maxThreadCount():
             self.postwarning(
@@ -1027,14 +1096,13 @@ class RunProgram(QMainWindow):
 
         else:
             curtabnum, tabID = self.whatTab()
-            self.pullsettings(
-                curtabnum, False
-            )  # don't need to update processor because it hasn't been initialized yet
 
-            # curchan = self.alltabdata[curtabnum]["tabwidgets"][
-            #     "chanselect"
-            # ].currentText()
+            # don't need to update processor because it hasn't been initialized yet
+            # Will update the stats dicts
+            self.pullsettings(curtabnum, False)
 
+            # HACK will probably need to find a better way to save this type of temp file.
+            # This creates a file called old_dir.txt
             fpath = Path(__file__)
             curpath = fpath.parent
             saved_path = curpath.joinpath("old_dir.txt")
@@ -1048,7 +1116,7 @@ class RunProgram(QMainWindow):
                 st_dir = str(Path("~").expanduser())
 
             drf_sel = True
-
+            # Runs a loop until user picks a good dataset
             while drf_sel:
 
                 drfdir = QFileDialog.getExistingDirectory(
@@ -1068,19 +1136,16 @@ class RunProgram(QMainWindow):
             except Exception as e:
                 print("Failed to open drf directory")
                 print(e)
-                traceback.print_exc()
-
-    # slot in main program to close window (only one channel selector window can be open at a time)
-    @pyqtSlot(int, int, str)
-    def audioWindowClosed(self, wasGood, tabID, datasource):
-        if wasGood:
-            self.audioWindowOpened = False
-            self.initiate_processor(tabID, datasource)
 
     def initiate_processor(self, tabID, drf_directory):
-        """This is called by start processor and does the work of calling .
-        
-        
+        """This is called by start processor and does the work of creating the processor instance.
+
+        Parameters
+        ----------
+        curtabnum : int
+            Tab number assocated with the processor.
+        drf_directory : str
+            The digital rf dataset location.
         """
         curtabnum = self.tabnumbers.index(tabID)
 
@@ -1092,10 +1157,6 @@ class RunProgram(QMainWindow):
         nint = self.alltabdata[curtabnum]["stats"]["nint"]
         ntime = self.alltabdata[curtabnum]["stats"]["ntime"]
 
-        self.alltabdata[curtabnum]["stats"]["updateint"] = int(
-            np.ceil(1 / ntime)
-        )  # updates visual once every second for live audio
-
         # saving datasource
         self.alltabdata[curtabnum]["datasource"] = drf_directory
 
@@ -1104,25 +1165,24 @@ class RunProgram(QMainWindow):
             self.usetype, drf_directory, tabID, fftlen, nint, ntime
         )
 
-
+        # Get the channel structure of the dataset
         self.alltabdata[curtabnum]["stats"]["chandict"] = self.alltabdata[curtabnum][
             "Processor"
         ].drfIn.chan_2sub
         chan_list = self.alltabdata[curtabnum]["Processor"].chan_listing
+        # Start the processor
         self.threadpool.start(self.alltabdata[curtabnum]["Processor"])
 
+        # Set up the channel and sub channel selection widgets
         self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].clear()
-        
         for ichan in chan_list:
             self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].addItem(ichan)
 
         sub_chanlist = self.alltabdata[curtabnum]["stats"]["chandict"][chan_list[0]]
         self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].clear()
-        # ipdb.set_trace()
         self.alltabdata[curtabnum]["stats"]["subchansel"] = sub_chanlist[0]
         for isub in sub_chanlist:
             self.alltabdata[curtabnum]["tabwidgets"]["subchansel"].addItem(str(isub))
-
 
         # connecting slots
         self.alltabdata[curtabnum]["Processor"].signals.iterated.connect(
@@ -1139,13 +1199,16 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["tabwidgets"]["chanselect"].setEnabled(True)
 
     def stopprocessor(self):
+        """Call back function for the stop button"""
         curtabnum, _ = self.whatTab()
         if self.alltabdata[curtabnum]["isprocessing"]:
             self.alltabdata[curtabnum]["Processor"].abort()
             self.alltabdata[curtabnum]["isprocessing"] = False
+            self.alltabdata[curtabnum]["tabwidgets"]["start"].setEnabled(True)
 
+    # HACK keeping only for use later for streaming.
     def append_spectral_data(self, mainspectra, newspectra, trimData, fsc, inds):
-
+        """Unused"""
         # trimming new spectra
         if trimData:
             lenspec = len(newspectra)
@@ -1169,9 +1232,25 @@ class RunProgram(QMainWindow):
         return output
 
     @pyqtSlot(int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray)
-    def updateUIinfo(
-        self, i, tabID, time_ar, freqs_all, sxx, sxx_med
-    ):  # TODO: configure PyQtSlot to receive data from processor thread and update spectrogram
+    def updateUIinfo(self, i, tabID, time_ar, freqs_all, sxx, sxx_med):
+        """This is the call back method used when getting new spectrogram data from the processor..
+
+        Parameters
+        ----------
+        i : int
+            Iteration number
+        tabID : int
+            Tab number assocated with the processor.
+        time_ar : ndarray
+            Numpy array of datetimes objects from the spectrogram.
+        freqs_all : ndarray
+            Frequency array from STI in Hz.
+        sxx : ndarray
+            STI of data
+        sxx_med : ndarray
+            Median of sxx across time.
+        """
+        # TODO: configure PyQtSlot to receive data from processor thread and update spectrogram
         curtabnum = self.tabnumbers.index(tabID)
 
         # saving data
@@ -1180,53 +1259,67 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["stats"]["freqs"] = freqs_all
         self.alltabdata[curtabnum]["data"]["freqs"] = freqs_all
         self.alltabdata[curtabnum]["data"]["times"] = time_ar
-
+        # Call uthe actual plot update
         self.update_plot(curtabnum)
 
-    def update_plot(self,curtabnum):
+    def update_plot(self, curtabnum):
+        """This does the actual work of updating the plots.
+
+        Parameters
+        ----------
+        curtabnum : int
+            Tab number assocated with the processor.
+        """
         plotspectra = self.alltabdata[curtabnum]["data"]["spectra"]
         plotmedspec = self.alltabdata[curtabnum]["data"]["spectamed"]
         crange = self.alltabdata[curtabnum]["stats"]["crange"]
-        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
+        pltfreqs = self.alltabdata[curtabnum]["data"]["plotfreqs"] * 1e-3
         fvec = self.alltabdata[curtabnum]["data"]["freqs"]
 
         times = self.alltabdata[curtabnum]["data"]["times"]
-        # time_min = times.min()
-        # time_max = times.max()
+
         time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
         time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
-        dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
+        dt_b, dt_e = self.get_datetime_bnds(time_min, time_max)
         subchan = self.alltabdata[curtabnum]["stats"]["subchansel"]
         plotspectra = plotspectra[..., subchan]
-
+        # Update the PSD
         self.alltabdata[curtabnum]["PSDAxes"].cla()
-        hands = self.alltabdata[curtabnum]["PSDAxes"].plot(fvec*1e-3,plotmedspec)
+        hands = self.alltabdata[curtabnum]["PSDAxes"].plot(fvec * 1e-3, plotmedspec)
         self.alltabdata[curtabnum]["PSDAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
         self.alltabdata[curtabnum]["PSDAxes"].set_ylim(crange[0], crange[1])
         self.alltabdata[curtabnum]["PSDAxes"].grid(True)
-        
+        self.alltabdata[curtabnum]["PSDAxes"].set_xlabel("Frequency (kHz)")
+        self.alltabdata[curtabnum]["PSDAxes"].set_ylabel("dBFS")
+        # update the STI plot
         self.alltabdata[curtabnum]["SpectroAxes"].cla()
         self.alltabdata[curtabnum]["SpectroAxes"].pcolormesh(
-            fvec*1e-3,
+            fvec * 1e-3,
             times,
             plotspectra.T,
             cmap="viridis",
             vmin=crange[0],
             vmax=crange[1],
         )
-        extent = [fvec[0]*1e-3,fvec[-1]*1e-3,time_min,time_max]
-        # self.alltabdata[curtabnum]["SpectroAxes"].imshow(plotspectra.T,cmap="viridis",aspect="auto",vmin=crange[0],vmax=crange[1],extent=extent)
         self.alltabdata[curtabnum]["SpectroAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
 
         self.alltabdata[curtabnum]["SpectroAxes"].set_ylim(dt_b, dt_e)
+        self.alltabdata[curtabnum]["SpectroAxes"].set_xlabel("Frequency (kHz)")
+        self.alltabdata[curtabnum]["SpectroAxes"].set_ylabel("Time")
         self.alltabdata[curtabnum]["SpectroCanvas"].draw()
-        print("Update plot")
-
 
     @pyqtSlot(int, int)
-    def updateUIfinal(
-        self, tabID, reason
-    ):  # TODO: final plot update (error codes, etc)
+    def updateUIfinal(self, tabID, reason):
+        """This does the actual work of updating the plots.
+
+        Parameters
+        ----------
+        tabID : int
+            Tab number assocated with the processor.
+        reason : int
+            An int to give the reason why the ui finished.
+        """
+        # TODO: final plot update (error codes, etc)
         curtabnum = self.tabnumbers.index(tabID)
         curtabname = self.tabWidget.tabText(curtabnum)
 
@@ -1234,8 +1327,6 @@ class RunProgram(QMainWindow):
         self.update_plot(curtabnum)
 
         maxval = np.round(self.alltabdata[curtabnum]["data"]["maxtime"] * 20) / 20
-
-
 
         self.alltabdata[curtabnum]["tabwidget"].setTabEnabled(1, True)
         self.alltabdata[curtabnum]["tabwidgets"]["starttime"].setRange(0, maxval - 0.5)
@@ -1262,6 +1353,20 @@ class RunProgram(QMainWindow):
     # =============================================================================
 
     def buildspectrogramcolorbar(self, spectralmap, crange, fig, ax):
+        """Builds a color bar given a spectral map and range
+        HACK: may be able to drop this.
+
+        Parameters
+        ----------
+        spectralmap : ndarray
+            The color map.
+        crange : list
+            The limits of the colorbar.
+        fig : figure
+            A matplotlib figure
+        ax : axis
+            Matplotlib axis object.
+        """
         cbar_cm_object = cm.ScalarMappable(
             norm=Normalize(vmin=crange[0], vmax=crange[1]), cmap=spectralmap
         )
@@ -1274,6 +1379,12 @@ class RunProgram(QMainWindow):
     # =============================================================================
 
     def updatesavespectrobox(self, isChecked):
+        """
+        Parameters
+        ----------
+        isChecked : bool
+            Setting the savefmax values
+        """
         curtabnum, _ = self.whatTab()
         self.alltabdata[curtabnum]["tabwidgets"]["savecmin"].setEnabled(isChecked)
         self.alltabdata[curtabnum]["tabwidgets"]["savecmax"].setEnabled(isChecked)
@@ -1281,13 +1392,20 @@ class RunProgram(QMainWindow):
         self.alltabdata[curtabnum]["tabwidgets"]["savefmax"].setEnabled(isChecked)
 
     def updatesavesubsetbox(self, isChecked):
+        """
+        Parameters
+        ----------
+        isChecked : bool
+            Setting the starttime values
+        """
         curtabnum, _ = self.whatTab()
         self.alltabdata[curtabnum]["tabwidgets"]["starttime"].setEnabled(isChecked)
         self.alltabdata[curtabnum]["tabwidgets"]["endtime"].setEnabled(isChecked)
 
     def savefiles(self):
+        """The call back for the save file button."""
 
-        curtabnum, tabID = self.whatTab()
+        curtabnum, _ = self.whatTab()
 
         # getting data
         saveSpectro = self.alltabdata[curtabnum]["tabwidgets"][
@@ -1327,28 +1445,48 @@ class RunProgram(QMainWindow):
         QApplication.restoreOverrideCursor()
 
     def saveSpectroFile(self, filename, curtabnum, timerange, freqrange, colorrange):
+        """Save method called by the callback
+
+        Parameters
+        ----------
+        filename : str
+            Desired filename.
+        curtabnum : int
+            Tab number assocated with the processor.
+        timerange : list
+            Time range
+        freqrange : list
+            frequency range to save.
+        colorrange : list
+            Color range in dBFS.
+        """
         if filename[-4:].lower() != ".png":
             filename += ".png"
 
-        freqs = self.alltabdata[curtabnum]["data"]["freqs"]  # pulling data to plot
+        fvec = (
+            self.alltabdata[curtabnum]["data"]["freqs"] * 1e-3
+        )  # pulling data to plot
         times = self.alltabdata[curtabnum]["data"]["times"]
-        spectra = self.alltabdata[curtabnum]["data"]["spectra"]
-        plot_freqs = self.alltabdata[curtabnum]["data"]["plotfreqs"]*1e-3
+        plotspectra = self.alltabdata[curtabnum]["data"]["spectra"]
+        plot_freqs = self.alltabdata[curtabnum]["data"]["plotfreqs"] * 1e-3
+        subchan = self.alltabdata[curtabnum]["stats"]["subchansel"]
 
         time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
         time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
-        dt_b, dt_e = self.get_datetime_bnds(time_min,time_max)
+        dt_b, dt_e = self.get_datetime_bnds(time_min, time_max)
         # trimming data
         keepfreqs = np.all(
-            (np.greater_equal(freqs, freqrange[0]), np.less_equal(freqs, freqrange[1])),
+            (np.greater_equal(fvec, freqrange[0]), np.less_equal(fvec, freqrange[1])),
             axis=0,
         )
         keeptimes = np.all(
-            (np.greater_equal(times, timerange[0]), np.less_equal(times, timerange[1])),
+            (np.greater_equal(times, dt_b), np.less_equal(times, dt_e)),
             axis=0,
         )
-        freqs = freqs[keepfreqs]
+
+        freqs = fvec[keepfreqs]
         times = times[keeptimes]
+        spectra = plotspectra[..., subchan]
         spectra = spectra[np.ix_(keepfreqs, keeptimes)]
 
         # calculating pixel extent for plt.imshow()
@@ -1378,12 +1516,21 @@ class RunProgram(QMainWindow):
         fig.savefig(filename, format="png", dpi=300)
 
     def getFileSaveSelection(self, filekind, fileext):
+        """
+
+        Parameters
+        ----------
+        filekind : str
+            Describes the type of file
+        fileext : str
+            File extention precedded by *.
+        """
         try:
             savefile = str(
                 QFileDialog.getSaveFileName(
                     self,
                     f"Select {filekind} filename to save",
-                    self.defaultfiledir,
+                    str(self.defaultfiledir),
                     fileext,
                     options=QFileDialog.DontUseNativeDialog,
                 )
@@ -1407,6 +1554,13 @@ class RunProgram(QMainWindow):
 
     # handles tab indexing
     def addnewtab(self):
+        """Add a new tab and does the indexing.
+
+        Returns
+        -------
+        newtabnum : int
+            The new tab number.
+        """
         # creating numeric ID for newly opened tab
         self.totaltabs += 1
         self.tabnumbers.append(self.totaltabs)
@@ -1415,11 +1569,21 @@ class RunProgram(QMainWindow):
 
     # gets index of open tab in GUI
     def whatTab(self):
+        """Determines the current tab that is opened.
+
+        Returns
+        -------
+        curtabnum : int
+            The current tab number.
+        : float
+            The number assocated with th etab
+        """
         curtabnum = self.tabWidget.currentIndex()
         return curtabnum, self.tabnumbers[curtabnum]
 
     # renames tab (only user-visible name, not self.alltabdata dict key)
     def renametab(self):
+        """Renames the tab for the user."""
         try:
             curtabnum, _ = self.whatTab()
             name, ok = QInputDialog.getText(
@@ -1437,6 +1601,7 @@ class RunProgram(QMainWindow):
 
     # sets default color scheme for tabs
     def setnewtabcolor(self, tab):
+        """Changes the colro of the tab"""
         p = QPalette()
         gradient = QLinearGradient(0, 0, 0, 400)
         gradient.setColorAt(0.0, QColor(255, 253, 253))
@@ -1448,6 +1613,7 @@ class RunProgram(QMainWindow):
 
     # closes a tab
     def closecurrenttab(self):
+        """Closes the current tab."""
         try:
             reply = QMessageBox.question(
                 self,
@@ -1477,6 +1643,13 @@ class RunProgram(QMainWindow):
 
     # warning message
     def postwarning(self, warningtext):
+        """Make a warning message pop up.
+
+        Parameters
+        ----------
+        warningtext : str
+            Text assocated with the message.
+        """
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
         msg.setText(warningtext)
@@ -1486,6 +1659,13 @@ class RunProgram(QMainWindow):
 
     # error message
     def posterror(self, errortext):
+        """Make an error message pop up.
+
+        Parameters
+        ----------
+        errortext : str
+            Text assocated with the message.
+        """
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
         msg.setText(errortext)
@@ -1495,6 +1675,13 @@ class RunProgram(QMainWindow):
 
     # warning message with options (Okay or Cancel)
     def postwarning_option(self, warningtext):
+        """Make a warning message with option pop up.
+
+        Parameters
+        ----------
+        warningtext : str
+            Text assocated with the message.
+        """
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Warning)
         msg.setText(warningtext)
@@ -1510,6 +1697,13 @@ class RunProgram(QMainWindow):
 
     # add warning message before closing GUI
     def closeEvent(self, event):
+        """Close even popup
+
+        Parameters
+        ----------
+        event : qtevent
+            Event signaling the closing.
+        """
         reply = QMessageBox.question(
             self,
             "Message",
@@ -1530,71 +1724,6 @@ class RunProgram(QMainWindow):
             event.accept()
         else:
             event.ignore()
-
-
-# =============================================================================
-#        POPUP WINDOW FOR AUDIO CHANNEL SELECTION
-# =============================================================================
-
-
-class AudioWindow(QWidget):
-
-    def __init__(self, nchannels, tabID, fname):
-        super(AudioWindow, self).__init__()
-
-        self.layout = QVBoxLayout()
-        self.setLayout(self.layout)
-
-        self.selectedChannel = 1
-        self.wasClosed = False
-        self.nchannels = nchannels
-        self.fname = fname
-        self.tabID = tabID
-
-        self.signals = AudioWindowSignals()
-
-        self.title = QLabel(
-            "Select channel to read\n(for 2-channel WAV files,\nCh1 = left and Ch2 = right):"
-        )
-        self.spinbox = QSpinBox()
-        self.spinbox.setMinimum(1)
-        self.spinbox.setMaximum(self.nchannels)
-        self.spinbox.setSingleStep(1)
-        self.spinbox.setValue(self.selectedChannel)
-        self.finish = QPushButton("Select Channel")
-        self.finish.clicked.connect(self.selectChannel)
-
-        self.layout.addWidget(self.title)
-        self.layout.addWidget(self.spinbox)
-        self.layout.addWidget(self.finish)
-
-        self.show()
-
-    def selectChannel(self):
-        self.selectedChannel = self.spinbox.value()
-
-        # format is Audio<channel#><filename> e.g. Audio0002/My/File.WAV
-        # allowing for 5-digit channels since WAV file channel is a 16-bit integer, can go to 65,536
-        self.datasource = f"AAA-{self.selectedChannel:05d}-{self.fname}"
-
-        # emit signal
-        self.signals.closed.emit(True, self.tabID, self.datasource)
-
-        # close dialogue box
-        self.wasClosed = True
-        self.close()
-
-    # add warning message on exit
-    def closeEvent(self, event):
-        event.accept()
-        if not self.wasClosed:
-            self.signals.closed.emit(False, "No", "No")
-            self.wasClosed = True
-
-
-# initializing signals for data to be passed back to main loop
-class AudioWindowSignals(QObject):
-    closed = pyqtSignal(int, int, str)
 
 
 # =============================================================================

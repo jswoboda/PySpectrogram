@@ -54,6 +54,8 @@ from fractions import Fraction
 from pathlib import Path
 
 import ipdb
+
+
 class DrfInput:
 
     def __init__(self, drfdir):
@@ -124,10 +126,10 @@ class DrfInput:
             x = self.drf_Obj.read_vector(st_sample, n_sample, ichan, isub)
         self.bnds[ichan] = bnds
         self.last_read[ichan] = (st_sample, n_sample)
-        x = x / np.sqrt(ref)
+        x = x / ref
         return x
-    
-    def read_sti(self,st_sample, chan_entry, en_sample,nfft,nint,ntime):
+
+    def read_sti(self, st_sample, chan_entry, en_sample, nfft, nint, ntime):
         """Get the needed arrays for an STI from digital rf. The ending array will be an array of size (nfftxnint,ntime,nsub) where nfft is the number of nfft points, nint is the number of integrated ffts, ntime is the number of time elements and the nsub is the number of sub channels. This allows for the first axes to represent fft, integrate and then time.
 
         Parameters
@@ -144,7 +146,7 @@ class DrfInput:
             Number of integrations of the fft.
         ntime : int
             Number of time points of the fft
-        
+
         Returns
         -------
         n_st : ndarray
@@ -152,18 +154,18 @@ class DrfInput:
         dout : ndarray
             Array of samples read out is of shape of (nfftxnint,ntime,nsub).
         """
-       
-        n_sample = nint*nfft
-        n_st = np.linspace(st_sample,en_sample-n_sample,ntime,dtype=int)
+
+        n_sample = nint * nfft
+        n_st = np.linspace(st_sample, en_sample - n_sample, ntime, dtype=int)
         dlist = []
-        for ist in n_st: 
-            d1 = self.read(ist,n_sample,chan_entry)
-            d2 = d1[:,np.newaxis]
+        for ist in n_st:
+            d1 = self.read(ist, n_sample, chan_entry)
+            d2 = d1[:, np.newaxis]
             dlist.append(d2)
 
-        dout = np.concatenate(dlist,axis=1)
+        dout = np.concatenate(dlist, axis=1)
         return n_st, dout
-    
+
     def bnds_update(self):
         """Update the internal bounds in the class."""
         chans = list(self.chan_2sub.keys())
@@ -210,8 +212,8 @@ class DrfProcessor(QRunnable):
     def __init__(
         self, datasource, drfdir, tabID, fftbins, n_int, ntime, *args, **kwargs
     ):
-        #fftwindow is number of seconds for fft.
-        # in the original software dt was the sample time, fs was the sampling frequency. 
+        # fftwindow is number of seconds for fft.
+        # in the original software dt was the sample time, fs was the sampling frequency.
         # dt is time between ffts in the original code. basically controls the overlap.
 
         super(DrfProcessor, self).__init__()
@@ -245,6 +247,7 @@ class DrfProcessor(QRunnable):
 
         self.isrunning = True
         self.curchan = list(self.drfIn.chan_2sub.keys())[0]
+
     @pyqtSlot()
     def run(self):
 
@@ -260,11 +263,11 @@ class DrfProcessor(QRunnable):
 
             timemodule.sleep(0.1)
 
-        if (self.reason):  
+        if self.reason:
             # just in case timing issues allow the while loop to terminate and then the reason is changed
             return
         # if the Run() method gets this far, __init__ has completed successfully (and set self.startthread = 100)
-   
+
         try:
             # setting up thread while loop- terminates when user clicks "STOP" or audio file finishes processing
             i = -1
@@ -272,35 +275,44 @@ class DrfProcessor(QRunnable):
             while self.isrunning:
                 i += 1
                 # storing FFT settings (this can't happen in __init__ because it might emit updated settings before the slot is connected)
-                
+
                 # update teh bounds
                 ichan = self.curchan
-                
-               
+
                 sr = self.drfIn.sr_dict[ichan]
                 self.drfIn.bnds_update()
-                self.updatesettings(sr,self.fftbins, self.n_int,self.ntime, self.drfIn.time_bnds[0], self.drfIn.time_bnds[1])
+                self.updatesettings(
+                    self.fftbins,
+                    self.n_int,
+                    self.ntime,
+                    self.drfIn.time_bnds[0],
+                    self.drfIn.time_bnds[1],
+                )
                 if self.streaming:
                     end_time = self.drfIn.time_bnds[-1]
-                    st_time = end_time-self.streamtime
+                    st_time = end_time - self.streamtime
 
                 else:
                     st_time, end_time = self.bnds
 
-                s_samp = drf.util.time_to_sample(st_time,sr)
-                e_samp = drf.util.time_to_sample(end_time,sr)
-                n_st, d1 = self.drfIn.read_sti(s_samp,ichan,e_samp,self.fftbins,self.n_int,self.ntime)
-                time_list = [drf.util.sample_to_datetime(istime, int(sr)) for istime in n_st]
+                s_samp = drf.util.time_to_sample(st_time, sr)
+                e_samp = drf.util.time_to_sample(end_time, sr)
+                n_st, d1 = self.drfIn.read_sti(
+                    s_samp, ichan, e_samp, self.fftbins, self.n_int, self.ntime
+                )
+                time_list = [
+                    drf.util.sample_to_datetime(istime, int(sr)) for istime in n_st
+                ]
                 time_ar = np.array(time_list)
-                f, sxx, sxx_med = sti_proc_data(d1,sr,self.fftbins)
+                f, sxx, sxx_med = sti_proc_data(d1, sr, self.fftbins)
                 eps = 1e-15
-                sxx_dbfs = 10*np.log10(sxx+eps)
-                sxx_med_dbfs = 10*np.log10(sxx_med+eps) 
+                sxx_dbfs = 10 * np.log10(sxx + eps)
+                sxx_med_dbfs = 10 * np.log10(sxx_med + eps)
                 self.freqs_all = f
                 self.signals.iterated.emit(
-                        i,self.tabID, time_ar, self.freqs_all, sxx_dbfs, sxx_med_dbfs
-                    )
- 
+                    i, self.tabID, time_ar, self.freqs_all, sxx_dbfs, sxx_med_dbfs
+                )
+
                 if self.streaming:
                     timemodule.sleep(0.08)  # tiny pause to free resources
 
@@ -314,18 +326,23 @@ class DrfProcessor(QRunnable):
 
             trace_error()  # if there is an error, terminates processing
 
+    @pyqtSlot(float, float, float, float, float)
+    def updatesettings_slot(
+        self, fftbins, nint, ntime, bnd_beg, bnd_end
+    ):  # update data thresholds for FFT
+        self.updatesettings(fftbins, nint, ntime, bnd_beg, bnd_end)
 
-
-    @pyqtSlot(float, float, float,float,float)
-    def updatesettings_slot(self, sr, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
-        self.updatesettings( sr, fftbins,nint,ntime,bnd_beg,bnd_end)
-
-    def updatesettings(self, sr, fftbins,nint,ntime,bnd_beg,bnd_end):  # update data thresholds for FFT
+    def updatesettings(
+        self, fftbins, nint, ntime, bnd_beg, bnd_end
+    ):  # update data thresholds for FFT
         self.fftbins = int(fftbins)
         self.n_int = int(nint)
         self.ntime = int(ntime)
-        self.bnds = (bnd_beg,bnd_end)
-        self.signals.statsupdated.emit(self.tabID,sr, self.fftbins,self.n_int,self.ntime,self.bnds)
+        self.bnds = (bnd_beg, bnd_end)
+        sr = self.drfIn.sr_dict[self.curchan]
+        self.signals.statsupdated.emit(
+            self.tabID, sr, self.fftbins, self.n_int, self.ntime, self.bnds
+        )
 
     @pyqtSlot()
     def abort(self):  # executed when user selects "Stop" button
@@ -337,7 +354,6 @@ class DrfProcessor(QRunnable):
     def terminate(self, reason):
         self.reason = reason
         self.isrunning = False  # guarantees that event loop ends
-
 
         # signal that tab indicated by curtabnum was closed due to reason indicated by variable 'reason'
         self.signals.terminated.emit(
@@ -369,15 +385,23 @@ def sti_proc_data(d1, sr, nfft):
     """
     win = sig.get_window(("kaiser", 1.7), nfft)
     f, pxx = sig.periodogram(
-        d1, sr, window=win, nfft=nfft,detrend=False, return_onesided=False, scaling="spectrum", axis=0)
-  
+        d1,
+        sr,
+        window=win,
+        nfft=nfft,
+        detrend=False,
+        return_onesided=False,
+        scaling="spectrum",
+        axis=0,
+    )
 
     f = np.fft.fftshift(f)
     sxx = np.fft.fftshift(pxx, axes=0)
 
-    sxx_med = np.median(sxx,axis=1)
+    sxx_med = np.median(sxx, axis=1)
 
     return f, sxx, sxx_med
+
 
 def proc_data(d1, sr, nfft, dt):
     """Creates a STI, min median and max spectra.
@@ -433,7 +457,7 @@ def proc_data(d1, sr, nfft, dt):
 # initializing signals for data to be passed back to main loop
 class ThreadProcessorSignals(QObject):
     iterated = pyqtSignal(
-        int, int, np.ndarray, np.ndarray, np.ndarray,np.ndarray
+        int, int, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     )  # signal to add another entry to raw data arrays
     statsupdated = pyqtSignal(int, Fraction, int, float, int, tuple)
     terminated = pyqtSignal(
