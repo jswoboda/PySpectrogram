@@ -873,16 +873,24 @@ class RunProgram(QMainWindow):
         new_tmin = drf.util.datetime_to_timestamp(dt_b)
         new_tmax = drf.util.datetime_to_timestamp(dt_e)
 
+        self.alltabdata[curtabnum]["tabwidgets"]["timerangemintext"].setText(
+            dt_b.isoformat()
+        )
+        self.alltabdata[curtabnum]["tabwidgets"]["timerangemaxtext"].setText(
+            dt_e.isoformat()
+        )
         # Color range
         oldcrange = self.alltabdata[curtabnum]["stats"]["crange"]
         self.alltabdata[curtabnum]["stats"]["crange"] = [
             self.alltabdata[curtabnum]["tabwidgets"]["cmin"].value(),
             self.alltabdata[curtabnum]["tabwidgets"]["cmax"].value(),
         ]
+
         if (
             self.alltabdata[curtabnum]["stats"]["crange"][1]
             <= self.alltabdata[curtabnum]["stats"]["crange"][0]
         ):
+
             self.alltabdata[curtabnum]["stats"]["crange"] = oldcrange
             self.alltabdata[curtabnum]["tabwidgets"]["cmin"].setValue(oldcrange[0])
             self.alltabdata[curtabnum]["tabwidgets"]["cmax"].setValue(oldcrange[1])
@@ -893,6 +901,7 @@ class RunProgram(QMainWindow):
             self.alltabdata[curtabnum]["tabwidgets"]["fmin"].value(),
             self.alltabdata[curtabnum]["tabwidgets"]["fmax"].value(),
         ]
+
         if (
             self.alltabdata[curtabnum]["stats"]["frange"][1]
             <= self.alltabdata[curtabnum]["stats"]["frange"][0]
@@ -1499,17 +1508,16 @@ class RunProgram(QMainWindow):
 
         # adding colorbar to plot
         self.buildspectrogramcolorbar(self.spectralmap, colorrange, fig, ax)
-
         # adding data to plot
         spectra[spectra < colorrange[0]] = colorrange[0]
         spectra[spectra > colorrange[1]] = colorrange[1]
         levels = np.linspace(colorrange[0], colorrange[1], len(self.cdata))
-        ax.contourf(times, freqs, spectra, levels=levels, colors=self.cdata)
+        ax.contourf(freqs, times, spectra.T, levels=levels, colors=self.cdata)
 
         # formatting
         ax.set_ylabel("Time (s)")
         ax.set_xlabel("Frequency (kHz)")
-        ax.set_xlim(plot_freqs[0], plot_freqs[1])
+        ax.set_xlim(plot_freqs[0], plot_freqs[-1])
         ax.set_ylim(dt_b, dt_e)
 
         # saving figure
