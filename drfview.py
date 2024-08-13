@@ -224,7 +224,7 @@ class RunProgram(QMainWindow):
                 "timerangemin": 0,
                 "timerangemax": 10000,
                 "fftlen": 1024,
-                "crange": [-70, -40],
+                "crange": [-110, -40],
                 "nint": 0.1,
                 "ntime": 100,
                 "frange": [-1000, 1000],
@@ -1286,7 +1286,8 @@ class RunProgram(QMainWindow):
         fvec = self.alltabdata[curtabnum]["data"]["freqs"]
 
         times = self.alltabdata[curtabnum]["data"]["times"]
-
+        (_,_,nsub) = plotspectra.shape
+        subnames = ["sub chan: {0}".format(i) for i in range(nsub)]
         time_min = self.alltabdata[curtabnum]["stats"]["timerangemin"]
         time_max = self.alltabdata[curtabnum]["stats"]["timerangemax"]
         dt_b, dt_e = self.get_datetime_bnds(time_min, time_max)
@@ -1294,7 +1295,9 @@ class RunProgram(QMainWindow):
         plotspectra = plotspectra[..., subchan]
         # Update the PSD
         self.alltabdata[curtabnum]["PSDAxes"].cla()
-        hands = self.alltabdata[curtabnum]["PSDAxes"].plot(fvec * 1e-3, plotmedspec)
+        hands = self.alltabdata[curtabnum]["PSDAxes"].plot(fvec * 1e-3, plotmedspec,linewidth=2)
+        hands[subchan].set_linewidth(4)
+        self.alltabdata[curtabnum]["PSDAxes"].legend(hands,subnames, bbox_to_anchor=[1.15,.9],ncol=2)
         self.alltabdata[curtabnum]["PSDAxes"].set_xlim(pltfreqs[0], pltfreqs[-1])
         self.alltabdata[curtabnum]["PSDAxes"].set_ylim(crange[0], crange[1])
         self.alltabdata[curtabnum]["PSDAxes"].grid(True)
