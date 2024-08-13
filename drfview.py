@@ -121,7 +121,7 @@ class RunProgram(QMainWindow):
         self.resize(cursize.width(), cursize.height() - titleBarHeight)
 
         # setting title/icon, background color
-        self.setWindowTitle("DRFRealtimeSpectrogram")
+        self.setWindowTitle("DRF Realtime Spectrogram")
         # self.setWindowIcon(QIcon('pathway_to_icon_here.png')) #TODO: Create/include icon
         p = self.palette()
         p.setColor(self.backgroundRole(), QColor(255, 255, 255))  # white background

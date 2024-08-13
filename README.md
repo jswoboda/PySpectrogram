@@ -1,15 +1,23 @@
-This is a Python-based spectrogram that runs with PyQt5, Matplotlib, and PyAudio. Users can either view a spectrogram in realtime using audio from their computer's microphone device(s) or replay audio from .WAV files. Required modules can be installed with `pip install -r requirements.txt`.
+# DRF Spectrogram Viewer
 
-*Note: PyAudio may require special installation steps, particularly for Linux and MacOS. Those instructions can be found on the [PyAudio home page](https://people.csail.mit.edu/hubert/pyaudio/).*
+Forked from [pyspectrogram](https://github.com/cdens/PySpectrogram)
 
-PyRealtimeSpectrogram allows users to control basic spectrogram plot characteristics such as the axes limits and color range on the plot, as well as some signal processing parameters to include the repetition rate, window length, and alpha value for a simple Tukey taper to reduce spectral leakage projecting onto the spectrogram.
+## Overview
 
-Users can also save the recorded audio and spectrogram, either including the entire spectrogram period or a specific subset.
+This is a pyqt 5 based gui for viewing PSDs and STI plots of [Digital RF](https://github.com/MITHaystack/digital_rf) data sets. The user can select the time over which the STI is plotted, the frequency coverage and number of samples in the FFT. The FFT always samples the full band the frequency windowing is simply windowing the plot of the FFT.
 
-Future improvements if I come back to this side project:
+## How to Use
+
+Once the drfview.py file is started the GUI will appear, across the whole screen. The user should press start then find a digital RF dataset. The gui will then plot the first channel and sub channel avalible. The currently selected channel will be highlighted in the PSD plot above. The time will increase on the STI from bottom to top. The user then can select the STI by first hitting the stop button followed by the save button, which then has controls to save out the STI. Note the text boxes controlling the color bar levels, fft samples, etc, should be interacted using the up and down arrows (see needed Improvements)
+
+## Improvements
+
+* Fix issue with text boxes where the GUI refreshes and takes the value of the text box without user input
+* Create a streaming mode.
+* Save out PSD as well.
 * Universal settings (e.g. GUI refresh rate)
 * Advanced control over FFT parameters and filtering
-* Post-recording filtering to remove unwanted signals from the audio (high/low-pass filtering, regenerating audio from a subset of the spectrogram)
+* Filtering to remove unwanted signals from the audio (high/low-pass filtering, regenerating audio from a subset of the spectrogram)
 
 ![screenshot](examples/screenshot1.png)
 ![screenshot](examples/screenshot2.png)
